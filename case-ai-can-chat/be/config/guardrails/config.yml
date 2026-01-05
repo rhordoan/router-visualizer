@@ -1,0 +1,42 @@
+models:
+  - type: main
+    engine: ollama
+    model: nemotron:70b
+
+rails:
+  input:
+    flows:
+      - check jailbreak
+      - check sensitive topics
+      - check pii
+  output:
+    flows:
+      - check hallucination
+      - check harmful content
+
+# Define sensitive topics for government context
+sensitive_topics:
+  - classified information
+  - personal identifiable information
+  - security credentials
+  - internal passwords
+  - confidential data
+
+# PII patterns to detect
+pii_patterns:
+  - social_insurance_number
+  - email_addresses
+  - phone_numbers
+  - credit_card_numbers
+
+# Hallucination detection
+hallucination_detection:
+  enabled: true
+  threshold: 0.7
+
+# Content moderation
+content_moderation:
+  enabled: true
+  block_profanity: true
+  block_threats: true
+  block_harassment: true

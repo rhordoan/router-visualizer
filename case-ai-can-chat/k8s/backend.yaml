@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthchat-backend
+  namespace: team-romania
+  labels:
+    app: healthchat-backend
+spec:
+  type: NodePort
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30087
+      protocol: TCP
+      name: http
+  selector:
+    app: healthchat-backend
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthchat-backend
+  namespace: team-romania
+  labels:
+    app: healthchat-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: healthchat-backend
+  template:
+    metadata:
+      labels:
+        app: healthchat-backend
+    spec:
+      initContainers:
+        - name: wait-for-mysql
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z healthchat-mysql 3306; do
+                echo "Waiting for MySQL..."
+                sleep 2
+              done
+              echo "MySQL is ready"
+        - name: wait-for-chromadb
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z healthchat-chromadb 8000; do
+                echo "Waiting for ChromaDB..."
+                sleep 2
+              done
+              echo "ChromaDB is ready"
+      containers:
+        - name: backend
+          image: bcm10-headnode:5000/healthchat-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+            - name: cache
+              mountPath: /.cache
+          env:
+            - name: DATABASE_URL
+              value: "mysql+pymysql://healthchat:healthchat123@healthchat-mysql:3306/healthchat_db"
+            - name: CHROMADB_HOST
+              value: "healthchat-chromadb"
+            - name: CHROMADB_PORT
+              value: "8000"
+            - name: CORS_ORIGINS
+              value: "http://localhost:3000,http://frontend:3000,http://10.130.200.141:30037,http://10.130.200.141:30038"
+            - name: DEBUG
+              value: "False"
+            - name: NEMO_ENABLED
+              value: "True"
+            - name: NEMO_GUARDRAILS_ENABLED
+              value: "True"
+            - name: LLM_BASE_URL
+              value: "http://ollama.default.svc.cluster.local:11434"
+            - name: LLM_MODEL
+              value: "nemotron:70b"
+            - name: EMBEDDING_API_URL
+              value: "http://10.130.200.141:30020/v1/embeddings"
+            - name: EMBEDDING_MODEL
+              value: "nvidia/llama-3.2-nv-embedqa-1b-v2"
+            - name: EMBEDDING_DIMENSION
+              value: "2048"
+            - name: RETRIEVAL_TOP_K
+              value: "10"
+            - name: RETRIEVAL_SCORE_THRESHOLD
+              value: "0.05"
+            - name: JWT_SECRET_KEY
+              value: "1234567890"
+            - name: JWT_ALGORITHM
+              value: "HS256"
+            - name: JWT_EXPIRATION_HOURS
+              value: "168"
+            - name: ENABLE_WEB_SEARCH
+              value: "false"
+            - name: WEB_SEARCH_MAX_RESULTS
+              value: "5"
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      volumes:
+        - name: logs
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}

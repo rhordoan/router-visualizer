@@ -1,0 +1,28 @@
+name: Setup Cloudflare Tunnel for CanChat
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-tunnel:
+    name: Setup Cloudflare Tunnel & Allocate Ports
+    uses: computacenter-ro/github-workflows-docker/.github/workflows/cloudflare-tunnel-setup.yml@main
+    with:
+      runs-on: '["self-hosted", "ccro-macstudio-one"]'
+      services: |
+        [
+          {
+            "name": "backend",
+            "subdomain": "canchat-api",
+            "internal_port": 8000,
+            "expose": true
+          },
+          {
+            "name": "frontend",
+            "subdomain": "canchat",
+            "internal_port": 3000,
+            "expose": true
+          }
+        ]
+    secrets: inherit
+

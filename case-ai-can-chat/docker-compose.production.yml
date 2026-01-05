@@ -1,0 +1,76 @@
+services:
+  backend:
+    image: healthchat-backend:latest
+    build:
+      context: ./be
+      dockerfile: Dockerfile
+    container_name: healthchat_backend_prod
+    restart: unless-stopped
+    environment:
+    - DATABASE_URL=${DATABASE_URL:-mysql+pymysql://healthchat:healthchat123@mysql_shared:3306/healthchat_db}
+    - CHROMADB_HOST=${CHROMADB_HOST:-chromadb_healthchat}
+    - CHROMADB_PORT=${CHROMADB_PORT:-8000}
+    - LOG_FILE=/app/logs/healthchat.log
+    - CORS_ORIGINS=${CORS_ORIGINS:-https://healthchat.ccrolabs.com}
+    - DEBUG=${DEBUG:-False}
+    - NEMO_ENABLED=${NEMO_ENABLED:-True}
+    - NEMO_GUARDRAILS_ENABLED=${NEMO_GUARDRAILS_ENABLED:-True}
+    - LLM_BASE_URL=${LLM_BASE_URL:-https://ollama.cc-demos.com}
+    - LLM_MODEL=${LLM_MODEL:-nemotron:70b}
+    - EMBEDDING_API_URL=${EMBEDDING_API_URL:-http://10.130.200.141:30020/v1/embeddings}
+    - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nvidia/llama-3.2-nv-embedqa-1b-v2}
+    - JWT_SECRET_KEY=${JWT_SECRET_KEY:-1234567890}
+    - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+    - JWT_EXPIRATION_HOURS=${JWT_EXPIRATION_HOURS:-168}
+    - ALLOWED_EMAIL_DOMAIN=${ALLOWED_EMAIL_DOMAIN:-computacenter.com}
+    - ENABLE_WEB_SEARCH=${ENABLE_WEB_SEARCH:-false}
+    - WEB_SEARCH_MAX_RESULTS=${WEB_SEARCH_MAX_RESULTS:-5}
+    - RETRIEVAL_TOP_K=${RETRIEVAL_TOP_K:-7}
+    - RETRIEVAL_SCORE_THRESHOLD=${RETRIEVAL_SCORE_THRESHOLD:-0.3}
+    - RERANK_TOP_N=${RERANK_TOP_N:-5}
+    - CHUNK_SIZE=${CHUNK_SIZE:-512}
+    - CHUNK_OVERLAP=${CHUNK_OVERLAP:-50}
+    - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-10}
+    volumes:
+    - backend_logs:/app/logs
+    networks:
+    - shared-network
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:8000/api/v1/health
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    ports:
+    - 8031:8000
+  frontend:
+    image: healthchat-frontend:latest
+    build:
+      context: ./fe
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://healthchat-api.ccrolabs.com}
+    container_name: healthchat_frontend_prod
+    restart: unless-stopped
+    environment:
+    - NODE_ENV=production
+    - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://healthchat-api.ccrolabs.com}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+    - shared-network
+    ports:
+    - 8032:3000
+networks:
+  shared-network:
+    external: true
+    name: shared-network
+volumes:
+  backend_logs:
+    driver: local
+    name: healthchat_backend_logs

@@ -1,0 +1,44 @@
+# FastAPI and Server
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# Pydantic
+pydantic==2.10.6
+pydantic-settings==2.7.1
+
+# Database
+SQLAlchemy==2.0.36
+PyMySQL==1.1.1
+alembic==1.14.0  # Note: Currently using SQLAlchemy direct table creation; Alembic kept for future complex migrations
+
+# Vector Database
+chromadb==0.5.23
+posthog>=2.4.0,<6.0.0
+
+# Embeddings and NLP
+sentence-transformers==3.3.1
+torch==2.5.1
+transformers==4.46.3
+nemoguardrails==0.8.1
+
+# HTTP Client
+httpx>=0.27.0
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Web Search
+duckduckgo-search==4.1.1
+
+# Document Processing
+pypdf2==3.0.1
+python-docx==1.1.0
+markdown==3.5.1
+
+# Utilities
+python-dotenv==1.0.1
+
+# Logging
+python-json-logger==3.2.1

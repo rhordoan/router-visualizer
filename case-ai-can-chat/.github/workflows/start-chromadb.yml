@@ -1,0 +1,16 @@
+name: Start ChromaDB for CanChat
+
+on:
+  workflow_dispatch:
+
+jobs:
+  start-chromadb:
+    name: Start ChromaDB Instance
+    uses: computacenter-ro/github-workflows-docker/.github/workflows/start-chromadb.yml@main
+    with:
+      runs-on: '["self-hosted", "ccro-macstudio-one"]'
+      container-name: chromadb_canchat
+      port: '8001'
+      chromadb-version: '0.5.23'
+      volume-name: chromadb_canchat_data
+

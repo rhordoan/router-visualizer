@@ -1,0 +1,14 @@
+name: Setup MySQL Database
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  create-database:
+    uses: computacenter-ro/github-workflows-docker/.github/workflows/mysql-database-setup.yml@main
+    with:
+      runs-on: '["self-hosted", "ccro-macstudio-one"]'
+      database-names: 'canchat_db'
+      database-users: 'canchat'
+      database-passwords: 'canchat123'
+

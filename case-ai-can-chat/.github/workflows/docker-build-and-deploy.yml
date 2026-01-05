@@ -1,0 +1,28 @@
+name: Docker Build and Deploy CanChat
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  docker-build:
+    name: Build Docker Images
+    uses: computacenter-ro/github-workflows-docker/.github/workflows/docker-build.yml@main
+    with:
+      runs-on: '["self-hosted", "ccro-macstudio-one"]'
+      remove-images: canchat-backend:latest,canchat-frontend:latest
+      compose-services: backend,frontend
+
+  docker-deploy:
+    name: Deploy Docker Services
+    needs: [docker-build]
+    uses: computacenter-ro/github-workflows-docker/.github/workflows/docker-deploy.yml@main
+    with:
+      runs-on: '["self-hosted", "ccro-macstudio-one"]'
+      compose-services: backend,frontend
+      show-logs-on-failure: true
+    secrets: inherit
+
