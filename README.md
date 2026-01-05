@@ -7,10 +7,12 @@ Monorepo that combines:
 
 ## Quickstart (recommended): Visualizer + router-controller via Docker
 
-This starts:
+This starts (everything you need for the demo):
 
 - **Blueprint Visualizer** on `http://localhost:3000`
 - **llm-router router-controller** on `http://localhost:8084`
+- **CanChat (HealthChat) backend** on `http://localhost:8005` (also provides real-time CoT for the visualizer)
+- **CanChat (HealthChat) frontend** on `http://localhost:3001`
 
 From the repo root:
 
@@ -21,8 +23,14 @@ docker compose -f docker-compose.visualizer-llm-router.yml up --build
 Open:
 
 - Visualizer: `http://localhost:3000`
+- CanChat: `http://localhost:3001`
 
-Then select **LLM Routing**, type a prompt, and click **Send**.
+Then:
+
+- **LLM Router demo**: in the visualizer, select **LLM Routing**, type a prompt, click **Send**.
+- **HealthChat/CoT demo**:
+  - open CanChat (`http://localhost:3001`) and send a message
+  - open the visualizer and select **HealthChat** to see real-time CoT updates
 
 ### Configure routing targets (Ollama / NIM / vLLM)
 
@@ -62,6 +70,24 @@ The visualizer calls:
 - `GET /api/router/latest` → returns the latest synthesized `RouterTraceSnapshot`
 
 The trace is stored **in memory** in the Next.js server process. That’s perfect for local demos; for multi-replica/serverless deployments you’d replace it with a shared store (Redis/DB).
+
+## Configure CanChat (HealthChat) LLM + embeddings
+
+CanChat runs as part of the root compose and is what powers the **HealthChat** blueprint’s `/api/v1/cot/realtime/latest` endpoint.
+
+By default the compose uses the same environment variables as `case-ai-can-chat/docker-compose.yml`. You’ll most commonly want to override:
+
+- **`LLM_BASE_URL`**: your OpenAI-compatible LLM endpoint (Ollama/NIM/vLLM)
+- **`LLM_MODEL`**: model name at that endpoint
+- **`EMBEDDING_API_URL`** and **`EMBEDDING_MODEL`**: your embedding endpoint + model
+
+Example (PowerShell):
+
+```powershell
+$env:LLM_BASE_URL="http://host.docker.internal:11434"
+$env:LLM_MODEL="llama3.1:8b"
+docker compose -f docker-compose.visualizer-llm-router.yml up --build
+```
 
 ## Repo layout
 

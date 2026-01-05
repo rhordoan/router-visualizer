@@ -4,7 +4,7 @@ services:
       context: ./case-ai-blueprint-visualizer
       dockerfile: Dockerfile
       args:
-        HEALTHCHAT_BACKEND_URL: ${HEALTHCHAT_BACKEND_URL:-}
+        HEALTHCHAT_BACKEND_URL: ${HEALTHCHAT_BACKEND_URL:-http://canchat-backend:8000}
     image: blueprint-visualizer:local
     container_name: blueprint_visualizer
     restart: unless-stopped
@@ -12,13 +12,109 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - HEALTHCHAT_BACKEND_URL=${HEALTHCHAT_BACKEND_URL:-}
+      # HealthChat backend base URL used by /api/cot proxy:
+      - HEALTHCHAT_BACKEND_URL=${HEALTHCHAT_BACKEND_URL:-http://canchat-backend:8000}
       # llm-router router-controller lives on the same Compose network:
       - LLM_ROUTER_BACKEND_URL=http://router-controller:8084
       # Default to manual routing so Triton isn't required for local testing
       - LLM_ROUTER_DEFAULT_STRATEGY=${LLM_ROUTER_DEFAULT_STRATEGY:-manual}
     depends_on:
       - router-controller
+      - canchat-backend
+    networks:
+      - visualizer_llm_router_net
+
+  # HealthChat (CanChat) stack - powers the HealthChat blueprint's real-time CoT endpoint
+  canchat-mysql:
+    image: mysql:8.0
+    container_name: canchat_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CANCHAT_MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${CANCHAT_MYSQL_DATABASE:-healthchat_db}
+      MYSQL_USER: ${CANCHAT_MYSQL_USER:-healthchat}
+      MYSQL_PASSWORD: ${CANCHAT_MYSQL_PASSWORD:-healthchat123}
+    volumes:
+      - canchat_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - visualizer_llm_router_net
+
+  canchat-chromadb:
+    image: chromadb/chroma:0.5.23
+    container_name: canchat_chromadb
+    restart: unless-stopped
+    volumes:
+      - canchat_chromadb_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    networks:
+      - visualizer_llm_router_net
+
+  canchat-backend:
+    build:
+      context: ./case-ai-can-chat/be
+      dockerfile: Dockerfile
+    container_name: canchat_backend
+    restart: unless-stopped
+    ports:
+      - "8005:8000"
+    environment:
+      - DATABASE_URL=mysql+pymysql://${CANCHAT_MYSQL_USER:-healthchat}:${CANCHAT_MYSQL_PASSWORD:-healthchat123}@canchat-mysql:3306/${CANCHAT_MYSQL_DATABASE:-healthchat_db}
+      - CHROMADB_HOST=canchat-chromadb
+      - CHROMADB_PORT=8000
+      - LOG_FILE=/app/logs/healthchat.log
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://canchat-frontend:3000
+      - DEBUG=${CANCHAT_DEBUG:-False}
+      # NeMo Configuration
+      - NEMO_ENABLED=${CANCHAT_NEMO_ENABLED:-True}
+      - NEMO_GUARDRAILS_ENABLED=${CANCHAT_NEMO_GUARDRAILS_ENABLED:-True}
+      # LLM Configuration (point this to your NIM/Ollama/vLLM OpenAI-compatible endpoint)
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://ollama.cc-demos.com}
+      - LLM_MODEL=${LLM_MODEL:-nemotron:70b}
+      # Embedding Configuration
+      - EMBEDDING_API_URL=${EMBEDDING_API_URL:-http://10.130.200.141:30020/v1/embeddings}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-nvidia/llama-3.2-nv-embedqa-1b-v2}
+      # JWT Configuration
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-1234567890}
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRATION_HOURS=168
+      # Web Search
+      - ENABLE_WEB_SEARCH=${CANCHAT_ENABLE_WEB_SEARCH:-false}
+      - WEB_SEARCH_MAX_RESULTS=${CANCHAT_WEB_SEARCH_MAX_RESULTS:-5}
+    volumes:
+      - canchat_backend_logs:/app/logs
+    depends_on:
+      canchat-mysql:
+        condition: service_healthy
+      canchat-chromadb:
+        condition: service_started
+    networks:
+      - visualizer_llm_router_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  canchat-frontend:
+    build:
+      context: ./case-ai-can-chat/fe
+      dockerfile: Dockerfile
+    container_name: canchat_frontend
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      # Browser-facing API URL
+      - NEXT_PUBLIC_API_URL=http://localhost:8005
+    depends_on:
+      - canchat-backend
     networks:
       - visualizer_llm_router_net
 
@@ -69,5 +165,13 @@ services:
 networks:
   visualizer_llm_router_net:
     driver: bridge
+
+volumes:
+  canchat_mysql_data:
+    driver: local
+  canchat_chromadb_data:
+    driver: local
+  canchat_backend_logs:
+    driver: local
 
 
