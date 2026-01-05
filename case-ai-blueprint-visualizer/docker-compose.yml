@@ -1,0 +1,28 @@
+services:
+  # Blueprint Visualizer Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # URL to HealthChat backend for real-time CoT visualization
+        # Default points to your Brev HealthChat deployment; override via env if needed
+        HEALTHCHAT_BACKEND_URL: ${HEALTHCHAT_BACKEND_URL:-https://healthchat-f0niay97c.brevlab.com}
+    container_name: blueprint_visualizer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Expose the backend URL at runtime as well (used by /api/cot proxy)
+      - HEALTHCHAT_BACKEND_URL=${HEALTHCHAT_BACKEND_URL:-https://healthchat-f0niay97c.brevlab.com}
+      # LLM Router router-controller base URL (used by /api/router/run)
+      # If llm-router is running on the host, host.docker.internal usually works (Windows/Mac).
+      - LLM_ROUTER_BACKEND_URL=${LLM_ROUTER_BACKEND_URL:-http://host.docker.internal:8084}
+    networks:
+      - visualizer_network
+
+networks:
+  visualizer_network:
+    driver: bridge
+

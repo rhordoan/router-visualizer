@@ -1,0 +1,15 @@
+.ipynb_checkpoints/
+*.pyc
+app/.env
+models
+src/router-controller/target/
+# Triton model repository can be large/generated; keep docs in git.
+routers/**
+!routers/readme.md
+.Trash-0/
+ngc-cli/
+ngc-cli.md5
+ngccli_linux.zip
+# Helm chart override files
+values.override.yaml
+**/values.override.yaml

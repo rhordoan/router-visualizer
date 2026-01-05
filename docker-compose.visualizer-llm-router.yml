@@ -1,0 +1,73 @@
+services:
+  blueprint-visualizer:
+    build:
+      context: ./case-ai-blueprint-visualizer
+      dockerfile: Dockerfile
+      args:
+        HEALTHCHAT_BACKEND_URL: ${HEALTHCHAT_BACKEND_URL:-}
+    image: blueprint-visualizer:local
+    container_name: blueprint_visualizer
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - HEALTHCHAT_BACKEND_URL=${HEALTHCHAT_BACKEND_URL:-}
+      # llm-router router-controller lives on the same Compose network:
+      - LLM_ROUTER_BACKEND_URL=http://router-controller:8084
+      # Default to manual routing so Triton isn't required for local testing
+      - LLM_ROUTER_DEFAULT_STRATEGY=${LLM_ROUTER_DEFAULT_STRATEGY:-manual}
+    depends_on:
+      - router-controller
+    networks:
+      - visualizer_llm_router_net
+
+  router-controller:
+    build:
+      context: ./llm-router
+      dockerfile: src/router-controller/router-controller.dockerfile
+    image: router-controller:local
+    container_name: router_controller
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    # Override config without rebuilding (edit this file to point at Ollama/NIM/etc.)
+    volumes:
+      - ./llm-router/src/router-controller/config.yaml:/app/config.yaml:ro
+    # On Linux, this enables host.docker.internal; harmless on Docker Desktop.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      # Only needed if your config.yaml references ${NVIDIA_API_KEY}
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+    networks:
+      - visualizer_llm_router_net
+
+  # Optional Triton router-server (only needed for routing_strategy: triton)
+  router-server:
+    profiles: ["triton"]
+    build:
+      context: ./llm-router
+      dockerfile: src/router-server/router-server.dockerfile
+    image: router-server:local
+    container_name: router_server
+    shm_size: 8G
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    volumes:
+      - ./llm-router/routers/:/model_repository
+    command: tritonserver --log-verbose=1 --model-repository=/model_repository
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+    networks:
+      - visualizer_llm_router_net
+
+networks:
+  visualizer_llm_router_net:
+    driver: bridge
+
+
