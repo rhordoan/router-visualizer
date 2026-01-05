@@ -20,6 +20,13 @@ From the repo root:
 docker compose -f docker-compose.visualizer-llm-router.yml up --build
 ```
 
+### What you may need to set (before `docker compose up`)
+
+- **llm-router routing targets**: edit `llm-router/src/router-controller/config.yaml` to point each LLM entry to the right `api_base` (Ollama/NIM/vLLM) and `model`.
+- **API keys (only if required by your chosen `api_base`)**:
+  - If your llm-router `config.yaml` uses `${NVIDIA_API_KEY}`, export `NVIDIA_API_KEY` before bringing the stack up.
+  - If you point to a NIM/vLLM endpoint that requires a different key, put it into the corresponding `api_key:` field in `config.yaml`.
+
 Open:
 
 - Visualizer: `http://localhost:3000`
@@ -80,6 +87,8 @@ By default the compose uses the same environment variables as `case-ai-can-chat/
 - **`LLM_BASE_URL`**: your OpenAI-compatible LLM endpoint (Ollama/NIM/vLLM)
 - **`LLM_MODEL`**: model name at that endpoint
 - **`EMBEDDING_API_URL`** and **`EMBEDDING_MODEL`**: your embedding endpoint + model
+
+If these aren’t reachable, CanChat will still start, but responses/CoT may fail or be empty.
 
 Example (PowerShell):
 
