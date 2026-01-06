@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Allow frontend lib folder (Next.js client utilities)
+!case-ai-can-chat/fe/lib/
+!case-ai-can-chat/fe/lib/**
