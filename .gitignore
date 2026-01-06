@@ -209,3 +209,7 @@ __marimo__/
 # Allow frontend lib folder (Next.js client utilities)
 !case-ai-can-chat/fe/lib/
 !case-ai-can-chat/fe/lib/**
+
+# Allow blueprint visualizer lib folder
+!case-ai-blueprint-visualizer/lib/
+!case-ai-blueprint-visualizer/lib/**
