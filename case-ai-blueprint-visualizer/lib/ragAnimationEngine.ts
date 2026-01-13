@@ -289,4 +289,21 @@ export class RAGAnimationEngine {
     this.state = { ...this.state, isPlaying: true };
     this.notifyStateChange();
   }
+
+  public next(): void {
+    // For RAG, we don't manually step through - it's trace-driven
+    // This is a no-op to satisfy the interface
+  }
+
+  public reset(): void {
+    this.state = this.getInitialState();
+    this.lastRunId = null;
+    this.currentSnapshot = null;
+    this.notifyStateChange();
+  }
+
+  public setSpeed(speed: number): void {
+    this.state = { ...this.state, speed };
+    this.notifyStateChange();
+  }
 }
