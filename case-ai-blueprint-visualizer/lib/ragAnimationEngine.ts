@@ -279,4 +279,14 @@ export class RAGAnimationEngine {
   public getCurrentSnapshot(): RAGTraceSnapshot | null {
     return this.currentSnapshot;
   }
+
+  public pause(): void {
+    this.state = { ...this.state, isPlaying: false };
+    this.notifyStateChange();
+  }
+
+  public play(): void {
+    this.state = { ...this.state, isPlaying: true };
+    this.notifyStateChange();
+  }
 }
