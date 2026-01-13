@@ -7,6 +7,8 @@ import { HealthChatAnimationEngine } from '@/lib/healthChatAnimationEngine';
 import { cotService } from '@/lib/cotService';
 import { LlmRouterAnimationEngine } from '@/lib/llmRouterAnimationEngine';
 import { routerTraceService } from '@/lib/routerTraceService';
+import { RAGAnimationEngine } from '@/lib/ragAnimationEngine';
+import { ragTraceService } from '@/lib/ragTraceService';
 import ControlBar from '@/components/ControlBar';
 import BlueprintMap from '@/components/BlueprintMap';
 import EventTrace from '@/components/EventTrace';
@@ -16,8 +18,9 @@ export default function Home() {
   const [scenarioId, setScenarioId] = useState('healthcare');
   const [animationState, setAnimationState] = useState<AnimationState | null>(null);
   const [llmRouterPrompt, setLlmRouterPrompt] = useState('Explain quantum computing');
+  const [ragQuery, setRagQuery] = useState('What are the system requirements for deploying NVIDIA NIM?');
   const animationEngineRef = useRef<
-    AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | null
+    AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | RAGAnimationEngine | null
   >(null);
 
   const currentBlueprint = getBlueprintById(blueprintId);
@@ -30,8 +33,9 @@ export default function Home() {
     // Real-time modes
     const isHealthChat = blueprintId === 'healthchat';
     const isLlmRouter = blueprintId === 'llm-routing';
+    const isNvidiaRag = blueprintId === 'nvidia-rag';
     
-    let engine: AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine;
+    let engine: AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | RAGAnimationEngine;
     
     if (isHealthChat) {
       // HealthChat real-time mode
@@ -61,6 +65,19 @@ export default function Home() {
       if (!routerTraceService.isPolling()) {
         (engine as LlmRouterAnimationEngine).start();
       }
+    } else if (isNvidiaRag) {
+      engine = new RAGAnimationEngine(
+        currentBlueprint,
+        currentScenario,
+        (state) => {
+          setAnimationState(state);
+        },
+        ragTraceService
+      );
+
+      if (!ragTraceService.isPolling()) {
+        (engine as RAGAnimationEngine).start();
+      }
     } else {
       // Standard mock-data mode
       engine = new AnimationEngine(
@@ -83,6 +100,9 @@ export default function Home() {
       }
       if (isLlmRouter && animationEngineRef.current) {
         (animationEngineRef.current as LlmRouterAnimationEngine).stop();
+      }
+      if (isNvidiaRag && animationEngineRef.current) {
+        (animationEngineRef.current as RAGAnimationEngine).stop();
       }
       animationEngineRef.current = null;
     };
@@ -146,6 +166,21 @@ export default function Home() {
     }
   };
 
+  const handleRagSend = async () => {
+    try {
+      const payload = {
+        query: ragQuery,
+      };
+      await fetch('/api/rag/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // swallow; trace endpoint will surface errors via polling
+    }
+  };
+
   if (!currentBlueprint || !currentScenario || !animationState) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -156,7 +191,8 @@ export default function Home() {
 
   const isHealthChat = blueprintId === 'healthchat';
   const isLlmRouter = blueprintId === 'llm-routing';
-  const isRealTime = isHealthChat || isLlmRouter;
+  const isNvidiaRag = blueprintId === 'nvidia-rag';
+  const isRealTime = isHealthChat || isLlmRouter || isNvidiaRag;
 
   return (
     <div className="min-h-screen p-8 bg-[#0f172a]">
@@ -187,6 +223,9 @@ export default function Home() {
         llmRouterPrompt={isLlmRouter ? llmRouterPrompt : undefined}
         onLlmRouterPromptChange={isLlmRouter ? setLlmRouterPrompt : undefined}
         onLlmRouterSend={isLlmRouter ? handleLlmRouterSend : undefined}
+        ragQuery={isNvidiaRag ? ragQuery : undefined}
+        onRagQueryChange={isNvidiaRag ? setRagQuery : undefined}
+        onRagSend={isNvidiaRag ? handleRagSend : undefined}
       />
 
       {/* Main Content Grid */}

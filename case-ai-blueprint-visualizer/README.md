@@ -84,7 +84,13 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 - General Query
 - Healthcare Query
 
-**Enterprise RAG** - Knowledge base retrieval and generation
+**NVIDIA RAG** - Real-time NVIDIA Enterprise RAG pipeline visualization
+- Real-time integration with NVIDIA RAG Blueprint (Brev deployment)
+- Document Q&A with semantic search
+- Policy & Compliance queries
+- Live trace visualization with metrics
+
+**Enterprise RAG** - Knowledge base retrieval and generation (mock scenarios)
 - Product Documentation
 - Policy Inquiry
 - Knowledge Base Query
