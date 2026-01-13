@@ -122,10 +122,29 @@ export async function POST(req: Request) {
       });
 
       const text = await response.text();
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        data = text;
+      
+      // Parse SSE (Server-Sent Events) format if backend streams
+      if (text.includes('data: ')) {
+        const lines = text.split('\n').filter(line => line.startsWith('data: '));
+        const chunks = lines.map(line => {
+          try {
+            return JSON.parse(line.replace(/^data: /, ''));
+          } catch {
+            return null;
+          }
+        }).filter(Boolean);
+        
+        // Merge all chunks to get final data
+        if (chunks.length > 0) {
+          const lastChunk = chunks[chunks.length - 1] as Record<string, unknown>;
+          data = lastChunk;
+        }
+      } else {
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch {
+          data = text;
+        }
       }
     } catch (error) {
       backendError = error instanceof Error ? error.message : 'Connection to NVIDIA RAG backend failed';
