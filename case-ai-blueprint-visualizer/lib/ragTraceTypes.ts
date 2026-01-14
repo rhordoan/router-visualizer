@@ -30,8 +30,6 @@ export interface RAGMetrics {
   retrieval_time_ms: number | null;
   reranking_time_ms: number | null;
   generation_time_ms: number | null;
-  guardrails_input_time_ms: number | null;
-  guardrails_output_time_ms: number | null;
   documents_retrieved: number;
   documents_reranked: number;
   final_context_tokens: number | null;

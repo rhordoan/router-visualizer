@@ -41,10 +41,8 @@ export async function POST(req: Request) {
       mkStep('retrieval', 'Retrieving documents', 'pending', new Date(startedAtMs + 50).toISOString()),
       mkStep('reranking', 'Reranking results', 'pending', new Date(startedAtMs + 150).toISOString()),
       mkStep('context_assembly', 'Assembling context', 'pending', new Date(startedAtMs + 200).toISOString()),
-      mkStep('guardrails_input', 'Input guardrails check', 'pending', new Date(startedAtMs + 250).toISOString()),
-      mkStep('generation', 'Generating response', 'pending', new Date(startedAtMs + 300).toISOString()),
-      mkStep('guardrails_output', 'Output guardrails check', 'pending', new Date(startedAtMs + 3300).toISOString()),
-      mkStep('output', 'Response ready', 'pending', new Date(startedAtMs + 3400).toISOString()),
+      mkStep('generation', 'Generating response', 'pending', new Date(startedAtMs + 250).toISOString()),
+      mkStep('output', 'Response ready', 'pending', new Date(startedAtMs + 3250).toISOString()),
     ];
 
     const initialSnapshot: RAGTraceSnapshot = {
@@ -64,8 +62,6 @@ export async function POST(req: Request) {
         retrieval_time_ms: null,
         reranking_time_ms: null,
         generation_time_ms: null,
-        guardrails_input_time_ms: null,
-        guardrails_output_time_ms: null,
         documents_retrieved: 0,
         documents_reranked: 0,
         final_context_tokens: null,
@@ -211,8 +207,6 @@ export async function POST(req: Request) {
       retrieval_time_ms: null, // Not exposed in response
       reranking_time_ms: null, // Not exposed in response
       generation_time_ms: totalLatency, // Approximate
-      guardrails_input_time_ms: null,
-      guardrails_output_time_ms: null,
       documents_retrieved: retrievedDocs.length,
       documents_reranked: retrievedDocs.length,
       final_context_tokens: typeof usage.prompt_tokens === 'number' ? usage.prompt_tokens : null,

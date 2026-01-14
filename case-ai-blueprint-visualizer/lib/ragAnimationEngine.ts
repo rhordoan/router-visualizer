@@ -10,9 +10,7 @@ const mapStepTypeToNodeId = (stepType: string): string | null => {
     retrieval: 'retrieval',
     reranking: 'reranking',
     context_assembly: 'context_assembly',
-    guardrails_input: 'guardrails_input',
     generation: 'generation',
-    guardrails_output: 'guardrails_output',
     output: 'output',
   };
   return mapping[stepType] || null;
@@ -125,30 +123,6 @@ export class RAGAnimationEngine {
       });
     }
 
-    // Add guardrails results
-    if (snapshot.guardrails_input) {
-      const status = snapshot.guardrails_input.passed ? '✓ Passed' : '❌ Failed';
-      const violations = snapshot.guardrails_input.violations.length > 0 
-        ? ` (${snapshot.guardrails_input.violations.join(', ')})` 
-        : '';
-      this.scenario.chatMessages.push({
-        role: 'system',
-        content: `🛡️ Input Guardrails: ${status}${violations}`,
-        timing: Math.max(0, parseIsoMs(snapshot.last_updated) - createdAtMs),
-      });
-    }
-
-    if (snapshot.guardrails_output) {
-      const status = snapshot.guardrails_output.passed ? '✓ Passed' : '❌ Failed';
-      const violations = snapshot.guardrails_output.violations.length > 0 
-        ? ` (${snapshot.guardrails_output.violations.join(', ')})` 
-        : '';
-      this.scenario.chatMessages.push({
-        role: 'system',
-        content: `🛡️ Output Guardrails: ${status}${violations}`,
-        timing: Math.max(0, parseIsoMs(snapshot.last_updated) - createdAtMs),
-      });
-    }
 
     // Add final response
     if (snapshot.final_response) {
@@ -171,9 +145,7 @@ export class RAGAnimationEngine {
       'retrieval',
       'reranking',
       'context_assembly',
-      'guardrails_input',
       'generation',
-      'guardrails_output',
       'output',
     ];
   }
