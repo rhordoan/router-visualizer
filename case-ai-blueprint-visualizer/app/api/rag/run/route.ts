@@ -1,16 +1,14 @@
-import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import type { RAGTraceSnapshot, RAGTraceStep } from '@/lib/ragTraceTypes';
 import { setLatestRAGTrace } from '../_traceStore';
 
 /**
- * Start a RAG query via NVIDIA RAG backend and synthesize a trace snapshot for the visualizer.
+ * Start a RAG query via NVIDIA RAG backend and stream pipeline events in real-time.
  *
- * POST /api/rag/run -> {NVIDIA_RAG_BACKEND_URL}/v1/rag/query
+ * POST /api/rag/run -> Stream SSE events with pipeline_step updates
  */
 export async function POST(req: Request) {
   try {
-    // NVIDIA RAG backend URL (from Brev launchable)
     const baseUrl = process.env.NVIDIA_RAG_BACKEND_URL || 'http://localhost:8081';
     const backendUrl = `${baseUrl.replace(/\/+$/, '')}/v1/chat/completions`;
 
@@ -23,29 +21,8 @@ export async function POST(req: Request) {
     const userQuery = (typeof body.query === 'string' && body.query.length > 0) ? body.query : null;
     const collectionName = process.env.NVIDIA_RAG_COLLECTION || 'multimodal_data';
 
-    const mkStep = (step_type: string, label: string, status: RAGTraceStep['status'], atIso: string): RAGTraceStep => ({
-      id: `${runId}:${step_type}`,
-      step_type,
-      label,
-      status,
-      timestamp: atIso,
-      duration_ms: null,
-      description: null,
-      metadata: {},
-    });
-
-    // Seed a "running" trace so the polling UI can show progress
-    const initialSteps: RAGTraceStep[] = [
-      mkStep('intake', 'Query intake', 'completed', startedAtIso),
-      mkStep('embedding', 'Generating embeddings', 'running', new Date(startedAtMs + 10).toISOString()),
-      mkStep('retrieval', 'Retrieving documents', 'pending', new Date(startedAtMs + 50).toISOString()),
-      mkStep('reranking', 'Reranking results', 'pending', new Date(startedAtMs + 150).toISOString()),
-      mkStep('context_assembly', 'Assembling context', 'pending', new Date(startedAtMs + 200).toISOString()),
-      mkStep('generation', 'Generating response', 'pending', new Date(startedAtMs + 250).toISOString()),
-      mkStep('output', 'Response ready', 'pending', new Date(startedAtMs + 3250).toISOString()),
-    ];
-
-    const initialSnapshot: RAGTraceSnapshot = {
+    // Initialize snapshot
+    const snapshot: RAGTraceSnapshot = {
       run_id: runId,
       user_query: userQuery,
       embedding_model: null,
@@ -55,7 +32,7 @@ export async function POST(req: Request) {
       guardrails_input: null,
       guardrails_output: null,
       final_response: null,
-      steps: initialSteps,
+      steps: [],
       metrics: {
         total_latency_ms: 0,
         embedding_time_ms: null,
@@ -71,7 +48,7 @@ export async function POST(req: Request) {
       error: null,
     };
 
-    setLatestRAGTrace(initialSnapshot);
+    setLatestRAGTrace(snapshot);
 
     // Call NVIDIA RAG backend with OpenAI-compatible format
     const upstreamBody: Record<string, unknown> = {
@@ -98,185 +75,197 @@ export async function POST(req: Request) {
       embedding_endpoint: 'nemoretriever-embedding-ms:8000',
       reranker_model: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',
       reranker_endpoint: 'nemoretriever-ranking-ms:8000',
-      stream: false,
+      stream: true, // Enable streaming
       ...body,
     };
 
-    let response: Response;
-    let data: unknown = null;
-    let backendError: string | null = null;
+    // Create streaming response
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        let finalResponse = '';
+        let backendError: string | null = null;
 
-    try {
-      response = await fetch(backendUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(process.env.NVIDIA_API_KEY ? { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` } : {}),
-        },
-        body: JSON.stringify(upstreamBody),
-        cache: 'no-store',
-      });
-
-      const text = await response.text();
-      
-      // Parse SSE (Server-Sent Events) format if backend streams
-      if (text.includes('data: ')) {
-        const lines = text.split('\n').filter(line => line.startsWith('data: '));
-        const chunks = lines.map(line => {
-          try {
-            return JSON.parse(line.replace(/^data: /, ''));
-          } catch {
-            return null;
-          }
-        }).filter(Boolean);
-        
-        // Merge all chunks to get final data
-        if (chunks.length > 0) {
-          const lastChunk = chunks[chunks.length - 1] as Record<string, unknown>;
-          data = lastChunk;
-        }
-      } else {
         try {
-          data = text ? JSON.parse(text) : null;
-        } catch {
-          data = text;
+          const response = await fetch(backendUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(process.env.NVIDIA_API_KEY ? { 'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}` } : {}),
+            },
+            body: JSON.stringify(upstreamBody),
+            cache: 'no-store',
+          });
+
+          if (!response.ok) {
+            backendError = `Backend error: ${response.status} ${response.statusText}`;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: backendError })}\n\n`));
+            controller.close();
+            return;
+          }
+
+          const reader = response.body?.getReader();
+          if (!reader) {
+            backendError = 'No response body from backend';
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: backendError })}\n\n`));
+            controller.close();
+            return;
+          }
+
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (!line.trim()) continue;
+
+              // Parse SSE format
+              if (line.startsWith('event: ')) {
+                const eventType = line.substring(7).trim();
+                continue; // Event type line, next line will have data
+              }
+
+              if (line.startsWith('data: ')) {
+                const dataStr = line.substring(6);
+
+                try {
+                  const data = JSON.parse(dataStr);
+
+                  // Check if this is a pipeline_step event
+                  if (data.step_type && data.status && data.timestamp) {
+                    // This is a pipeline step event
+                    const step: RAGTraceStep = {
+                      id: `${runId}:${data.step_type}`,
+                      step_type: data.step_type,
+                      label: getStepLabel(data.step_type),
+                      status: mapStatus(data.status),
+                      timestamp: data.timestamp,
+                      duration_ms: data.duration_ms ?? null,
+                      description: null,
+                      metadata: data.metadata || {},
+                    };
+
+                    // Update snapshot
+                    const existingIndex = snapshot.steps.findIndex(s => s.step_type === data.step_type);
+                    if (existingIndex >= 0) {
+                      snapshot.steps[existingIndex] = step;
+                    } else {
+                      snapshot.steps.push(step);
+                    }
+
+                    snapshot.last_updated = new Date().toISOString();
+                    setLatestRAGTrace(snapshot);
+
+                    // Forward to client
+                    controller.enqueue(encoder.encode(`event: pipeline_step\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify(step)}\n\n`));
+                  }
+                  // Check if this is a token chunk
+                  else if (data.choices && Array.isArray(data.choices)) {
+                    const firstChoice = data.choices[0] as any;
+
+                    // Accumulate response content
+                    if (firstChoice?.delta?.content) {
+                      finalResponse += firstChoice.delta.content;
+                    }
+
+                    // Check if finished
+                    if (firstChoice?.finish_reason === 'stop') {
+                      // Parse final metrics if available
+                      if (data.metrics) {
+                        snapshot.metrics = {
+                          total_latency_ms: Date.now() - startedAtMs,
+                          embedding_time_ms: data.metrics.embedding_time_ms ?? null,
+                          retrieval_time_ms: data.metrics.retrieval_time_ms ?? null,
+                          reranking_time_ms: data.metrics.context_reranker_time_ms ?? null,
+                          generation_time_ms: data.metrics.llm_generation_time_ms ?? null,
+                          documents_retrieved: data.metrics.documents_retrieved ?? 0,
+                          documents_reranked: data.metrics.documents_reranked ?? 0,
+                          final_context_tokens: data.usage?.prompt_tokens ?? null,
+                        };
+                      }
+
+                      snapshot.final_response = finalResponse;
+                      snapshot.last_updated = new Date().toISOString();
+                      setLatestRAGTrace(snapshot);
+                    }
+
+                    // Forward token chunk to client (optional - for showing response text)
+                    controller.enqueue(encoder.encode(`data: ${dataStr}\n\n`));
+                  }
+                  // Parse citations if available
+                  else if (data.citations && Array.isArray(data.citations)) {
+                    snapshot.retrieved_documents = data.citations.map((doc: any, idx: number) => ({
+                      document_id: doc.id || doc.document_id || `doc-${idx}`,
+                      score: typeof doc.score === 'number' ? doc.score : 0.9 - (idx * 0.1),
+                      content_preview: typeof doc.content === 'string' ? doc.content.substring(0, 150) :
+                                      typeof doc.text === 'string' ? doc.text.substring(0, 150) : '',
+                      source: doc.source || doc.file_name || doc.metadata?.source || `document-${idx}`,
+                    }));
+                    setLatestRAGTrace(snapshot);
+                  }
+                } catch (parseError) {
+                  // Not JSON or malformed, skip
+                  console.warn('Failed to parse SSE data:', dataStr);
+                }
+              }
+            }
+          }
+
+          // Ensure final snapshot is saved
+          if (!snapshot.final_response && finalResponse) {
+            snapshot.final_response = finalResponse;
+          }
+          snapshot.metrics.total_latency_ms = Date.now() - startedAtMs;
+          snapshot.last_updated = new Date().toISOString();
+          setLatestRAGTrace(snapshot);
+
+        } catch (error) {
+          backendError = error instanceof Error ? error.message : 'Connection to NVIDIA RAG backend failed';
+          snapshot.error = backendError;
+          setLatestRAGTrace(snapshot);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: backendError })}\n\n`));
+        } finally {
+          controller.close();
         }
-      }
-    } catch (error) {
-      backendError = error instanceof Error ? error.message : 'Connection to NVIDIA RAG backend failed';
-      response = new Response(null, { status: 503 });
-    }
-
-    const finishedAtMs = Date.now();
-    const finishedAtIso = new Date(finishedAtMs).toISOString();
-    const totalLatency = finishedAtMs - startedAtMs;
-
-    // Extract response data from NVIDIA RAG backend (OpenAI-compatible format)
-    const ragResponse = (typeof data === 'object' && data !== null) ? data as Record<string, unknown> : {};
-    
-    // Parse OpenAI-compatible response format
-    const choices = Array.isArray(ragResponse.choices) ? ragResponse.choices : [];
-    const firstChoice = choices[0] as Record<string, any> | undefined;
-    const message = firstChoice?.message as Record<string, any> | undefined;
-    const finalResponse = (typeof message?.content === 'string') ? message.content : null;
-
-    // Extract model info from response
-    const generationModel = (typeof ragResponse.model === 'string') ? ragResponse.model : upstreamBody.model as string | null;
-    const embeddingModel = upstreamBody.embedding_model as string | null;
-    const retrievalStrategy = 'hybrid-search';
-    
-    // Extract retrieved documents (may be in citations or context)
-    const citations = Array.isArray(ragResponse.citations) ? ragResponse.citations : [];
-    const retrievedDocs = citations.length > 0
-      ? citations.map((doc: any, idx: number) => ({
-          document_id: doc.id || doc.document_id || `doc-${idx}`,
-          score: typeof doc.score === 'number' ? doc.score : 0.9 - (idx * 0.1),
-          content_preview: typeof doc.content === 'string' ? doc.content.substring(0, 150) : 
-                          typeof doc.text === 'string' ? doc.text.substring(0, 150) : '',
-          source: doc.source || doc.file_name || doc.metadata?.source || `document-${idx}`,
-        }))
-      : [];
-
-    // Parse steps/trace from backend response
-    const backendSteps = Array.isArray(ragResponse.steps) ? ragResponse.steps : [];
-    const finalizedSteps: RAGTraceStep[] = backendSteps.length > 0
-      ? backendSteps.map((step: any) => ({
-          id: step.id || `${runId}:${step.step_type}`,
-          step_type: step.step_type || '',
-          label: step.label || step.name || '',
-          status: step.status || 'completed',
-          timestamp: step.timestamp || finishedAtIso,
-          duration_ms: typeof step.duration_ms === 'number' ? step.duration_ms : null,
-          description: step.description || null,
-          metadata: step.metadata || {},
-        }))
-      : initialSteps.map((s) => ({
-          ...s,
-          status: response.ok ? 'completed' : (s.status === 'completed' ? 'completed' : 'error'),
-          duration_ms: null,
-        }));
-
-    // Parse metrics from backend response (OpenAI usage format)
-    const usage = (typeof ragResponse.usage === 'object' && ragResponse.usage !== null) 
-      ? ragResponse.usage as Record<string, unknown> 
-      : {};
-    
-    const finalMetrics = {
-      total_latency_ms: totalLatency,
-      embedding_time_ms: null, // Not exposed in response
-      retrieval_time_ms: null, // Not exposed in response
-      reranking_time_ms: null, // Not exposed in response
-      generation_time_ms: totalLatency, // Approximate
-      documents_retrieved: retrievedDocs.length,
-      documents_reranked: retrievedDocs.length,
-      final_context_tokens: typeof usage.prompt_tokens === 'number' ? usage.prompt_tokens : null,
-    };
-
-    // Parse guardrails from backend response
-    const guardrailsInput = (typeof ragResponse.guardrails_input === 'object' && ragResponse.guardrails_input !== null)
-      ? {
-          passed: typeof (ragResponse.guardrails_input as any).passed === 'boolean' ? (ragResponse.guardrails_input as any).passed : true,
-          violations: Array.isArray((ragResponse.guardrails_input as any).violations) ? (ragResponse.guardrails_input as any).violations : [],
-          action_taken: typeof (ragResponse.guardrails_input as any).action_taken === 'string' ? (ragResponse.guardrails_input as any).action_taken : null,
-        }
-      : null;
-
-    const guardrailsOutput = (typeof ragResponse.guardrails_output === 'object' && ragResponse.guardrails_output !== null)
-      ? {
-          passed: typeof (ragResponse.guardrails_output as any).passed === 'boolean' ? (ragResponse.guardrails_output as any).passed : true,
-          violations: Array.isArray((ragResponse.guardrails_output as any).violations) ? (ragResponse.guardrails_output as any).violations : [],
-          action_taken: typeof (ragResponse.guardrails_output as any).action_taken === 'string' ? (ragResponse.guardrails_output as any).action_taken : null,
-        }
-      : null;
-
-    const finalSnapshot: RAGTraceSnapshot = {
-      run_id: runId,
-      user_query: userQuery,
-      embedding_model: embeddingModel,
-      retrieval_strategy: retrievalStrategy,
-      generation_model: generationModel,
-      retrieved_documents: retrievedDocs,
-      guardrails_input: guardrailsInput,
-      guardrails_output: guardrailsOutput,
-      final_response: finalResponse,
-      steps: finalizedSteps,
-      metrics: finalMetrics,
-      created_at: startedAtIso,
-      last_updated: finishedAtIso,
-      error: backendError || (response.ok ? null : 'RAG query failed'),
-    };
-
-    setLatestRAGTrace(finalSnapshot);
-
-    return NextResponse.json(
-      {
-        success: response.ok,
-        run_id: runId,
-        response: finalResponse,
-        error: backendError || (response.ok ? null : 'RAG query failed'),
       },
-      { 
-        status: response.ok ? 200 : 503,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-        },
-      }
-    );
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
   } catch (error) {
-    return NextResponse.json(
-      {
+    return new Response(
+      JSON.stringify({
         error: 'Failed to process RAG request',
         details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
   }
 }
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
+  return new Response(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
@@ -284,4 +273,26 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
+}
+
+// Helper functions
+function getStepLabel(stepType: string): string {
+  const labels: Record<string, string> = {
+    intake: 'Query intake',
+    embedding: 'Generating embeddings',
+    retrieval: 'Retrieving documents',
+    reranking: 'Reranking results',
+    context_assembly: 'Assembling context',
+    generation: 'Generating response',
+    output: 'Response ready',
+  };
+  return labels[stepType] || stepType;
+}
+
+function mapStatus(status: string): 'pending' | 'running' | 'completed' | 'error' | 'skipped' {
+  if (status === 'failed') return 'error';
+  if (['pending', 'running', 'completed', 'error', 'skipped'].includes(status)) {
+    return status as 'pending' | 'running' | 'completed' | 'error' | 'skipped';
+  }
+  return 'pending';
 }
