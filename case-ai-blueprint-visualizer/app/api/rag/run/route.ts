@@ -20,6 +20,7 @@ export async function POST(req: Request) {
 
     const userQuery = (typeof body.query === 'string' && body.query.length > 0) ? body.query : null;
     const collectionName = process.env.NVIDIA_RAG_COLLECTION || 'multimodal_data';
+    const llmModel = process.env.NVIDIA_RAG_LLM_MODEL || 'meta/llama-3.1-8b-instruct';
 
     // Initialize snapshot
     const snapshot: RAGTraceSnapshot = {
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
       enable_reranker: true,
       enable_guardrails: false,
       enable_citations: true,
-      model: 'nvidia/llama-3.3-nemotron-super-49b-v1.5',
+      model: llmModel,
       embedding_model: 'nvidia/llama-3.2-nv-embedqa-1b-v2',
       embedding_endpoint: 'nemoretriever-embedding-ms:8000',
       reranker_model: 'nvidia/llama-3.2-nv-rerankqa-1b-v2',

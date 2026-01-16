@@ -25,6 +25,8 @@ services:
       - NVIDIA_RAG_BACKEND_URL=${NVIDIA_RAG_BACKEND_URL:-http://rag-server:8081}
       # NVIDIA RAG collection name (optional)
       - NVIDIA_RAG_COLLECTION=${NVIDIA_RAG_COLLECTION:-multimodal_data}
+      # NVIDIA RAG LLM model (must match your deployed NIM)
+      - NVIDIA_RAG_LLM_MODEL=${NVIDIA_RAG_LLM_MODEL:-meta/llama-3.1-8b-instruct}
     networks:
       - visualizer_network
 
