@@ -8,6 +8,8 @@ services:
         # URL to HealthChat backend for real-time CoT visualization
         # Default points to your Brev HealthChat deployment; override via env if needed
         HEALTHCHAT_BACKEND_URL: ${HEALTHCHAT_BACKEND_URL:-https://healthchat-f0niay97c.brevlab.com}
+        # URL to NVIDIA RAG backend
+        NVIDIA_RAG_BACKEND_URL: ${NVIDIA_RAG_BACKEND_URL:-http://rag-server:8081}
     container_name: blueprint_visualizer
     restart: unless-stopped
     ports:
@@ -19,6 +21,10 @@ services:
       # LLM Router router-controller base URL (used by /api/router/run)
       # If llm-router is running on the host, host.docker.internal usually works (Windows/Mac).
       - LLM_ROUTER_BACKEND_URL=${LLM_ROUTER_BACKEND_URL:-http://host.docker.internal:8084}
+      # NVIDIA RAG backend URL (used by /api/rag/run)
+      - NVIDIA_RAG_BACKEND_URL=${NVIDIA_RAG_BACKEND_URL:-http://rag-server:8081}
+      # NVIDIA RAG collection name (optional)
+      - NVIDIA_RAG_COLLECTION=${NVIDIA_RAG_COLLECTION:-multimodal_data}
     networks:
       - visualizer_network
 
