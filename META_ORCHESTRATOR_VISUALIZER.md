@@ -43,8 +43,10 @@ These nodes represent the core NeMo Agent Toolkit runtime concepts: the workflow
 | Node ID | Label | Icon | x | y | Tooltip description | NeMo concept |
 |---|---|---|---|---|---|---|
 | `nat-serve` | nat serve | `server` | 50 | 170 | "NeMo Agent Toolkit long-lived HTTP service (`nat serve --config_file config.yml --port 8001`). Exposes all workflows as REST endpoints." | `nat serve` runtime |
+| `state-store` | Session State | `database` | 50 | 280 | "Robust session-state abstraction layer to pause and resume meta-workflows without breaking the conversational UI. Handles asynchronous step-up auth (OTP)." | Session Management |
 | `workflow-config` | Workflow YAML | `file-code` | 200 | 170 | "Declarative YAML config listing functions, LLMs, embedders, and workflow type. This is the single source of truth for the meta-orchestrator." | YAML workflow config |
 | `react-agent` | react_agent | `brain` | 400 | 170 | "NeMo `react_agent` workflow — the meta-orchestrator. Receives user intents, reasons over available tools, calls domain agents, and enforces governance." | Workflow type: react_agent |
+| `thought-loop` | Thought/Action Loop | `rotate-cw` | 400 | 100 | "Internal ReAct cycle: Thought -> Action -> Observation. Visualized as a small rotating ring around the brain node during processing." | ReAct reasoning cycle |
 | `intent-classify` | Intent Classifier | `share-2` | 400 | 280 | "LLM-based intent detection. Determines domain (IT, HR, Finance, Vendor Risk, Identity) and selects which NeMo functions/tools to invoke." | LLM reasoning within workflow |
 | `tool-select` | Tool Selector | `git-branch` | 600 | 220 | "Selects specific NeMo function(s) to call based on classified intent. Each function has a JSON schema and natural-language description controlling tool use." | Functions as tools |
 | `a2a-delegate` | A2A Delegation | `arrow-right-left` | 800 | 220 | "Agent-to-Agent delegation. Meta-agent calls domain agent workflows as if they were tools. NeMo Agent Toolkit connects agents together transparently." | A2A delegation |
@@ -320,6 +322,30 @@ When a connector is being tested, the `tool-registry` node shows a small badge: 
 ### 8.4 SSO / Auth flow
 
 When a platform requires step-up authentication (e.g. Oracle OTP), the platform node border turns amber and a small lock icon overlay appears. The connection from the domain agent pauses (dashed amber). The Event Trace shows: "Step-up auth required: Oracle OTP. Session paused."
+
+### 8.5 Tool Payload Inspector (Visual)
+
+When a node of type `api_call` or `native_agent` is active or selected, a "Payload Inspector" side-panel slides in from the left:
+- **Input JSON**: Pretty-printed JSON object sent to the platform API.
+- **Output JSON**: Normalized result returned to NeMo.
+- **Schema Validation**: Toggle to show the JSON schema from the NeMo `functions` config.
+- **MCP Context**: If accessed via MCP, show the mapped MCP tool name and resource URI.
+
+### 8.6 A2A Handshake Animation (Visual)
+
+When `a2a-delegate` activates:
+1. A small "packet" icon travels from `react-agent` to `a2a-delegate`.
+2. The `a2a-delegate` node pulses purple.
+3. Five arrows fan out to all domain agents in Layer 3 simultaneously in a "searching" scan (faint gray).
+4. The **selected** domain agent arrow turns solid purple and stays animated.
+5. A text label "Delegating Intent: IT_LOOKUP" appears briefly over the connection line.
+
+### 8.7 YAML-to-Graph Visualization (Visual)
+
+On initial load or when `workflow-config` is clicked:
+1. A small code editor window shows the YAML workflow definition.
+2. When a line in the `functions:` or `llms:` section is hovered, the corresponding node in the map glows.
+3. This visually reinforces the **NeMo declarative paradigm** — that the graph is directly generated from the YAML config.
 
 ---
 
