@@ -3,10 +3,12 @@ export type NodeStatus = 'active' | 'completed' | 'upcoming' | 'chosen' | 'dorma
 export interface BlueprintNode {
   id: string;
   label: string;
-  type: 'intake' | 'process' | 'classify' | 'route' | 'model' | 'execute' | 'validate' | 'output' | 'retrieval' | 'assembly';
+  type: 'intake' | 'process' | 'classify' | 'route' | 'model' | 'execute' | 'validate' | 'output' | 'retrieval' | 'assembly'
+  | 'orchestrator' | 'domain_agent' | 'platform' | 'native_agent' | 'api_call' | 'approval' | 'vectordb' | 'llm' | 'embedder' | 'nim' | 'registry' | 'config' | 'observability' | 'helpbot';
   icon: string;
   x: number;
   y: number;
+  layer?: number;
   status: NodeStatus;
   description?: string;
 }
@@ -49,5 +51,57 @@ export interface Blueprint {
   nodes: BlueprintNode[];
   connections: Connection[];
   scenarios: Scenario[];
+}
+
+// §6 Connector Registry card
+export interface ConnectorTool {
+  name: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  endpoint: string;
+  inputSchema: Record<string, unknown>;
+  outputSchema: Record<string, unknown>;
+}
+
+export interface ConnectorCard {
+  id: string;
+  name: string;
+  platform: string;
+  icon: string;
+  version: string;
+  domain: string;
+  capability: 'full' | 'read-only' | 'write-only' | 'partial';
+  status: 'healthy' | 'degraded' | 'offline';
+  intents: string[];
+  tools: ConnectorTool[];
+  runtime: {
+    invoke: string;
+    delegateAgent?: string;
+  };
+  mcpMapping: {
+    toolName: string;
+    resourceUri: string;
+  };
+  lastUsed: string;
+  callsToday: number;
+}
+
+// §7 Onboarding Pipeline
+export interface OnboardingStep {
+  id: string;
+  label: string;
+  icon: string;
+  description: string;
+  status: NodeStatus;
+}
+
+// §8.5 Payload Inspector
+export interface PayloadInspection {
+  nodeId: string;
+  toolName: string;
+  inputJson: Record<string, unknown>;
+  outputJson: Record<string, unknown>;
+  schema: Record<string, unknown>;
+  mcpTool?: string;
+  mcpResource?: string;
 }
 

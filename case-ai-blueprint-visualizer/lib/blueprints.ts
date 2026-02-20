@@ -37,10 +37,10 @@ export const blueprints: Blueprint[] = [
         activeNodes: [],
         events: [],
         chatMessages: [
-          { 
-            role: 'system', 
+          {
+            role: 'system',
             content: 'Connected to HealthChat backend. Send a message in HealthChat to see real-time CoT animation.',
-            timing: 0 
+            timing: 0
           },
         ],
       },
@@ -76,10 +76,10 @@ export const blueprints: Blueprint[] = [
         activeNodes: [],
         events: [],
         chatMessages: [
-          { 
-            role: 'system', 
+          {
+            role: 'system',
             content: 'Ready to process RAG queries. Send a question to see the NVIDIA RAG pipeline in action.',
-            timing: 0 
+            timing: 0
           },
         ],
       },
@@ -890,6 +890,214 @@ export const blueprints: Blueprint[] = [
           { role: 'system', content: 'Searching clinical protocols database...', timing: 10 },
           { role: 'system', content: 'Found 4 relevant clinical guidelines. Processing...', timing: 190 },
           { role: 'assistant', content: 'Emergency Department Triage Protocol for Chest Pain (Based on AHA/ACC Guidelines):\n\n**Immediate Assessment (ESI Level 1-2):**\n• Obtain vital signs: BP, HR, O2 saturation, temperature\n• 12-lead ECG within 10 minutes of arrival\n• Establish IV access\n• Continuous cardiac monitoring\n\n**Risk Stratification:**\n• **High Risk** - STEMI, unstable angina, severe dyspnea → Immediate physician evaluation\n• **Moderate Risk** - Atypical symptoms, risk factors present → Observation unit, troponin serial testing\n• **Low Risk** - No cardiac risk factors, reproducible chest wall pain → Standard evaluation\n\n**Initial Management:**\n• Aspirin 325mg (if no contraindications)\n• Nitroglycerin for ongoing pain\n• Oxygen if SpO2 <94%\n• Serial troponin at 0, 3, and 6 hours\n\n**Disposition:**\n• Cardiology consult for positive findings\n• Transfer to CCU/Cath Lab if STEMI confirmed\n• Observation unit for moderate risk\n• Discharge with cardiology follow-up if negative workup\n\nFollow hospital-specific protocols and contact on-call cardiology for consultation.', timing: 3100 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'meta-orchestrator',
+    name: 'Meta-Orchestrator',
+    description: 'Unified Enterprise AI Orchestration — NeMo Agent Toolkit Meta-Orchestrator',
+    nodes: [
+      // Layer 1 — HelpBot UI (y: 30)
+      { id: 'helpbot-chat', label: 'HelpBot Chat', type: 'helpbot', icon: 'message-square', x: 50, y: 30, layer: 1, status: 'dormant', description: 'Single conversational entry point. User types natural-language requests here.' },
+      { id: 'helpbot-todo', label: 'My To-Do', type: 'helpbot', icon: 'list-todo', x: 230, y: 30, layer: 1, status: 'dormant', description: 'Aggregated tasks from all connected platforms (Jira, ServiceNow, M365).' },
+      { id: 'helpbot-approvals', label: 'My Approvals', type: 'helpbot', icon: 'shield-check', x: 410, y: 30, layer: 1, status: 'dormant', description: 'Pending human-in-the-loop approval actions queued by the orchestrator.' },
+      { id: 'helpbot-updates', label: 'IT Updates', type: 'helpbot', icon: 'bell', x: 590, y: 30, layer: 1, status: 'dormant', description: 'Real-time incident and change notifications from ServiceNow and M365.' },
+      { id: 'helpbot-vendor', label: 'Vendor Tasks', type: 'helpbot', icon: 'clipboard-list', x: 770, y: 30, layer: 1, status: 'dormant', description: 'Third-party risk tasks from ProcessUnity and SailPoint.' },
+      { id: 'helpbot-calendar', label: 'My Day', type: 'helpbot', icon: 'calendar', x: 950, y: 30, layer: 1, status: 'dormant', description: 'Calendar view aggregated from M365 Graph and Oracle.' },
+
+      // Layer 2 — NeMo Orchestrator (y: 230, 400)
+      { id: 'nat-serve', label: 'nat serve', type: 'orchestrator', icon: 'server', x: 50, y: 230, layer: 2, status: 'dormant', description: 'NeMo Agent Toolkit long-lived HTTP service (nat serve --config_file config.yml --port 8001). Exposes all workflows as REST endpoints.' },
+      { id: 'state-store', label: 'Session State', type: 'orchestrator', icon: 'database', x: 50, y: 400, layer: 2, status: 'dormant', description: 'Robust session-state abstraction layer to pause and resume meta-workflows. Handles asynchronous step-up auth (OTP).' },
+      { id: 'workflow-config', label: 'Workflow YAML', type: 'config', icon: 'file-code', x: 230, y: 230, layer: 2, status: 'dormant', description: 'Declarative YAML config listing functions, LLMs, embedders, and workflow type. Single source of truth for the meta-orchestrator.' },
+      { id: 'observability', label: 'Observability', type: 'observability', icon: 'activity', x: 230, y: 400, layer: 2, status: 'dormant', description: 'OpenTelemetry + NeMo Profiler integration. Traces every LLM call, tool invocation, and agent delegation with latency and quality metrics.' },
+      { id: 'react-agent', label: 'react_agent', type: 'orchestrator', icon: 'brain', x: 500, y: 400, layer: 2, status: 'dormant', description: 'NeMo react_agent workflow — the meta-orchestrator. Receives user intents, reasons over available tools, calls domain agents, and enforces governance.' },
+      { id: 'intent-classify', label: 'Intent Classifier', type: 'classify', icon: 'share-2', x: 680, y: 230, layer: 2, status: 'dormant', description: 'LLM-based intent detection. Determines domain (IT, HR, Finance, Vendor Risk, Identity) and selects which NeMo functions/tools to invoke.' },
+      { id: 'tool-select', label: 'Tool Selector', type: 'route', icon: 'git-branch', x: 680, y: 400, layer: 2, status: 'dormant', description: 'Selects specific NeMo function(s) to call based on classified intent. Each function has a JSON schema and description controlling tool use.' },
+      { id: 'approval-gate', label: 'Approval Gate', type: 'approval', icon: 'hand', x: 860, y: 230, layer: 2, status: 'dormant', description: 'Policy engine tags high-risk actions (e.g. sensitive access grants) and forces a Confirm step in the UI before NeMo executes the tool.' },
+      { id: 'a2a-delegate', label: 'A2A Delegation', type: 'orchestrator', icon: 'arrow-right-left', x: 860, y: 400, layer: 2, status: 'dormant', description: 'Agent-to-Agent delegation. Meta-agent calls domain agent workflows as if they were tools.' },
+
+      // Layer 3 — Domain Agents (y: 610)
+      { id: 'domain-it', label: 'IT Agent', type: 'domain_agent', icon: 'monitor', x: 50, y: 610, layer: 3, status: 'dormant', description: 'NeMo workflow for IT operations. Tools: ServiceNow ITSM, M365 admin, Atlassian Jira.' },
+      { id: 'domain-hr', label: 'HR Agent', type: 'domain_agent', icon: 'users', x: 280, y: 610, layer: 3, status: 'dormant', description: 'NeMo workflow for HR operations. Tools: ServiceNow HR, M365 People.' },
+      { id: 'domain-finance', label: 'Finance Agent', type: 'domain_agent', icon: 'dollar-sign', x: 510, y: 610, layer: 3, status: 'dormant', description: 'NeMo workflow for Finance. Tools: Oracle Expenses REST API.' },
+      { id: 'domain-vendor', label: 'Vendor Risk Agent', type: 'domain_agent', icon: 'shield-alert', x: 740, y: 610, layer: 3, status: 'dormant', description: 'NeMo workflow for third-party risk. Tools: ProcessUnity API, SailPoint API.' },
+      { id: 'domain-identity', label: 'Identity Agent', type: 'domain_agent', icon: 'fingerprint', x: 970, y: 610, layer: 3, status: 'dormant', description: 'NeMo workflow for identity security. Tools: SailPoint SCIM/REST, Harbor Pilot.' },
+
+      // Platform nodes — Row 1 (y: 790)
+      { id: 'snow-nowassist', label: 'Now Assist', type: 'native_agent', icon: 'bot', x: 0, y: 790, layer: 3, status: 'dormant', description: 'ServiceNow Now Assist — native AI agent. NeMo tool servicenow_now_assist calls the Virtual Agent entrypoint for ITSM generative skills.' },
+      { id: 'snow-rest', label: 'SN REST API', type: 'api_call', icon: 'globe', x: 140, y: 790, layer: 3, status: 'dormant', description: 'ServiceNow REST Table API (/api/now/table/incident). NeMo HTTP tool for explicit operations.' },
+      { id: 'sf-agentforce', label: 'Agentforce', type: 'native_agent', icon: 'bot', x: 280, y: 790, layer: 3, status: 'dormant', description: 'Salesforce Agentforce — native AI agent for CRM triage and case resolution via Atlas Reasoning Engine.' },
+      { id: 'sf-rest', label: 'SF REST/SOQL', type: 'api_call', icon: 'globe', x: 420, y: 790, layer: 3, status: 'dormant', description: 'Salesforce REST and SOQL APIs for direct CRM data access.' },
+      { id: 'm365-copilot', label: 'M365 Copilot', type: 'native_agent', icon: 'bot', x: 560, y: 790, layer: 3, status: 'dormant', description: 'Microsoft 365 Copilot — the meta-orchestrator can be exposed as a Copilot plugin.' },
+      { id: 'm365-graph', label: 'Graph API', type: 'api_call', icon: 'globe', x: 700, y: 790, layer: 3, status: 'dormant', description: 'Microsoft Graph REST endpoints for emails, calendar, Teams, files.' },
+      { id: 'pu-ai', label: 'PU Evidence AI', type: 'native_agent', icon: 'bot', x: 840, y: 790, layer: 3, status: 'dormant', description: 'ProcessUnity Evidence Evaluator and Predictive Analytics for vendor risk assessment.' },
+      { id: 'pu-rest', label: 'ProcessUnity API', type: 'api_call', icon: 'globe', x: 980, y: 790, layer: 3, status: 'dormant', description: 'ProcessUnity TPRM API. NeMo tool processunity_get_vendor_risk returns normalized risk summaries.' },
+      { id: 'sailpoint-harbor', label: 'Harbor Pilot', type: 'native_agent', icon: 'bot', x: 1120, y: 790, layer: 3, status: 'dormant', description: 'SailPoint Harbor Pilot — AI agent for exploring identity data and building workflows.' },
+      { id: 'sailpoint-rest', label: 'SailPoint API', type: 'api_call', icon: 'globe', x: 1260, y: 790, layer: 3, status: 'dormant', description: 'SailPoint REST and SCIM APIs for cross-system identity provisioning.' },
+
+      // Platform nodes — Row 2 (y: 960)
+      { id: 'atl-intelligence', label: 'Atlassian Intel', type: 'native_agent', icon: 'bot', x: 0, y: 960, layer: 3, status: 'dormant', description: 'Atlassian Intelligence — embedded AI for Jira/Confluence generation and summarization.' },
+      { id: 'atl-rest', label: 'Jira/Confluence', type: 'api_call', icon: 'globe', x: 140, y: 960, layer: 3, status: 'dormant', description: 'Atlassian REST APIs for Jira issues and Confluence pages.' },
+      { id: 'oracle-expense', label: 'Expense Asst', type: 'native_agent', icon: 'bot', x: 560, y: 960, layer: 3, status: 'dormant', description: 'Oracle Fusion Expense Assistant — conversational skill within FA Digital Assistant.' },
+      { id: 'oracle-rest', label: 'Oracle Expenses', type: 'api_call', icon: 'globe', x: 700, y: 960, layer: 3, status: 'dormant', description: 'Oracle Fusion Expenses REST APIs. Step-up auth (OTP) requires session-state abstraction.' },
+
+      // Layer 4 — Data & Models (y: 1180, 1350)
+      { id: 'vectordb', label: 'Vector DB', type: 'vectordb', icon: 'database', x: 140, y: 1180, layer: 4, status: 'dormant', description: 'Enterprise vector store with curated embeddings. Transactional data, content data, and agent-generated content.' },
+      { id: 'rag-tool', label: 'RAG Search', type: 'retrieval', icon: 'search', x: 350, y: 1180, layer: 4, status: 'dormant', description: 'NeMo RAG function — runs vector similarity search and returns relevant passages to orchestrator workflows.' },
+      { id: 'llm-orchestration', label: 'Orchestration LLM', type: 'llm', icon: 'cpu', x: 560, y: 1180, layer: 4, status: 'dormant', description: 'Primary LLM used by the react_agent for reasoning, intent classification, and tool selection. Hosted via NeMo Microservices / NIM.' },
+      { id: 'llm-summarize', label: 'Summarization LLM', type: 'llm', icon: 'cpu', x: 770, y: 1180, layer: 4, status: 'dormant', description: 'Secondary LLM for response summarization and cross-platform data synthesis.' },
+      { id: 'embedder', label: 'Embedder', type: 'embedder', icon: 'zap', x: 350, y: 1350, layer: 4, status: 'dormant', description: 'NIM-hosted embedding model. Generates vectors for RAG indexing and query encoding.' },
+      { id: 'nim-services', label: 'NeMo Microservices', type: 'nim', icon: 'layers', x: 560, y: 1350, layer: 4, status: 'dormant', description: 'NeMo Microservices / NIM runtime hosting LLMs and embedders.' },
+      { id: 'tool-registry', label: 'Tool Registry', type: 'registry', icon: 'package', x: 980, y: 1180, layer: 4, status: 'dormant', description: 'Central registry of all NeMo functions (tools). Connectors are promoted here after AI-assisted onboarding passes nat eval testing.' },
+    ],
+    connections: [
+      // Layer 1 → Layer 2
+      { from: 'helpbot-chat', to: 'nat-serve' },
+
+      // Within Layer 2
+      { from: 'nat-serve', to: 'workflow-config' },
+      { from: 'nat-serve', to: 'react-agent' },
+      { from: 'nat-serve', to: 'state-store' },
+      { from: 'react-agent', to: 'intent-classify' },
+      { from: 'intent-classify', to: 'tool-select' },
+      { from: 'tool-select', to: 'a2a-delegate' },
+      { from: 'tool-select', to: 'approval-gate' },
+      { from: 'approval-gate', to: 'a2a-delegate' },
+      { from: 'react-agent', to: 'observability' },
+
+      // Layer 2 → Layer 3 (A2A delegation)
+      { from: 'a2a-delegate', to: 'domain-it' },
+      { from: 'a2a-delegate', to: 'domain-hr' },
+      { from: 'a2a-delegate', to: 'domain-finance' },
+      { from: 'a2a-delegate', to: 'domain-vendor' },
+      { from: 'a2a-delegate', to: 'domain-identity' },
+
+      // Domain agents → Platform tools
+      { from: 'domain-it', to: 'snow-nowassist' },
+      { from: 'domain-it', to: 'snow-rest' },
+      { from: 'domain-it', to: 'atl-intelligence' },
+      { from: 'domain-it', to: 'atl-rest' },
+      { from: 'domain-it', to: 'm365-copilot' },
+      { from: 'domain-it', to: 'm365-graph' },
+      { from: 'domain-hr', to: 'sf-agentforce' },
+      { from: 'domain-hr', to: 'sf-rest' },
+      { from: 'domain-finance', to: 'oracle-expense' },
+      { from: 'domain-finance', to: 'oracle-rest' },
+      { from: 'domain-vendor', to: 'pu-ai' },
+      { from: 'domain-vendor', to: 'pu-rest' },
+      { from: 'domain-identity', to: 'sailpoint-harbor' },
+      { from: 'domain-identity', to: 'sailpoint-rest' },
+
+      // Layer 2/3 → Layer 4 (data and model calls)
+      { from: 'react-agent', to: 'llm-orchestration' },
+      { from: 'react-agent', to: 'rag-tool' },
+      { from: 'rag-tool', to: 'vectordb' },
+      { from: 'rag-tool', to: 'embedder' },
+      { from: 'llm-orchestration', to: 'nim-services' },
+      { from: 'llm-summarize', to: 'nim-services' },
+      { from: 'embedder', to: 'nim-services' },
+
+      // Tool registry read path
+      { from: 'tool-select', to: 'tool-registry' },
+
+      // Response path
+      { from: 'react-agent', to: 'llm-summarize' },
+      { from: 'nat-serve', to: 'helpbot-chat' },
+    ],
+    scenarios: [
+      // Scenario 1: IT Incident + Jira Cross-Platform Lookup
+      {
+        id: 'it-incident-jira',
+        name: 'IT Incident + Jira Lookup',
+        description: 'Cross-platform query: find open ServiceNow incidents and related Jira tickets',
+        query: 'Show me my open incidents and related Jira tickets',
+        activeNodes: [
+          'helpbot-chat', 'nat-serve', 'workflow-config', 'react-agent', 'intent-classify',
+          'tool-select', 'a2a-delegate', 'domain-it', 'snow-rest', 'atl-rest',
+          'llm-orchestration', 'rag-tool', 'vectordb', 'embedder', 'nim-services',
+          'llm-summarize', 'observability', 'state-store', 'tool-registry',
+        ],
+        chosenPath: ['domain-it'],
+        events: [
+          { id: 'e1', message: '`nat serve` received POST /chat', timing: 0, status: 'completed', nodeIds: ['helpbot-chat', 'nat-serve'] },
+          { id: 'e2', message: 'Loaded workflow config: meta_orchestrator.yml', timing: 50, status: 'completed', nodeIds: ['workflow-config'] },
+          { id: 'e3', message: '`react_agent` workflow started', timing: 80, status: 'completed', nodeIds: ['react-agent'] },
+          { id: 'e4', message: 'LLM orchestration call for intent classification (620ms)', timing: 100, status: 'running', nodeIds: ['react-agent', 'llm-orchestration'] },
+          { id: 'e5', message: 'Intent classified: IT / cross-platform lookup', timing: 720, status: 'completed', nodeIds: ['intent-classify'] },
+          { id: 'e6', message: 'Selected tools: `servicenow_rest_get_incidents`, `jira_rest_search`', timing: 780, status: 'completed', nodeIds: ['tool-select'] },
+          { id: 'e6b', message: '`nat eval` running synthetic tests on connectors…', timing: 790, status: 'running', nodeIds: ['tool-registry'] },
+          { id: 'e6c', message: 'Connector passed 12/12 synthetic tests', timing: 810, status: 'completed', nodeIds: ['tool-registry'] },
+          { id: 'e7', message: 'Delegating to `domain-it` agent (NeMo A2A)', timing: 820, status: 'completed', nodeIds: ['a2a-delegate', 'domain-it'] },
+          { id: 'e8', message: 'GET `/api/now/table/incident?sysparm_query=active=true` → 200 OK (142ms)', timing: 850, status: 'running', nodeIds: ['snow-rest'] },
+          { id: 'e9', message: 'ServiceNow: 3 active incidents found', timing: 992, status: 'completed', nodeIds: ['snow-rest'] },
+          { id: 'e10', message: 'GET `/rest/api/3/search?jql=assignee=currentUser()` → 200 OK (89ms)', timing: 1000, status: 'running', nodeIds: ['atl-rest'] },
+          { id: 'e11', message: 'Jira: 5 open tickets found', timing: 1089, status: 'completed', nodeIds: ['atl-rest'] },
+          { id: 'e12', message: 'Vector search: 4 relevant KB articles retrieved (32ms)', timing: 1100, status: 'completed', nodeIds: ['rag-tool', 'vectordb', 'embedder'] },
+          { id: 'e13', message: 'OpenTelemetry span: `tool.servicenow_rest` 142ms, `tool.jira_rest` 89ms', timing: 1150, status: 'completed', nodeIds: ['observability'] },
+          { id: 'e14', message: 'Summarization LLM call — generating cross-platform summary (620ms)', timing: 1200, status: 'running', nodeIds: ['llm-summarize', 'nim-services'] },
+          { id: 'e15', message: 'Summary generated', timing: 1820, status: 'completed', nodeIds: ['llm-summarize'] },
+          { id: 'e16', message: 'Response delivered to HelpBot', timing: 1850, status: 'completed', nodeIds: ['nat-serve', 'helpbot-chat'] },
+        ],
+        chatMessages: [
+          { role: 'user', content: 'Show me my open incidents and related Jira tickets', timing: 0 },
+          { role: 'system', content: 'Intent classified: IT / cross-platform lookup', timing: 720 },
+          { role: 'system', content: 'Tools selected: `servicenow_rest_get_incidents`, `jira_rest_search`', timing: 780 },
+          { role: 'system', content: '`nat eval` — Connector passed 12/12 synthetic tests ✓', timing: 810 },
+          { role: 'system', content: 'Delegating to IT Agent (NeMo A2A)', timing: 820 },
+          { role: 'system', content: 'ServiceNow: 3 active incidents found (142ms)', timing: 992 },
+          { role: 'system', content: 'Jira: 5 open tickets found (89ms)', timing: 1089 },
+          { role: 'system', content: 'RAG: 4 relevant KB articles retrieved', timing: 1100 },
+          { role: 'system', content: 'Generating cross-platform summary…', timing: 1200 },
+          { role: 'assistant', content: 'You have **3 open ServiceNow incidents** and **5 Jira tickets**:\n\n**ServiceNow:**\n• INC001234 — VPN connectivity failure (P2, assigned to you)\n• INC001267 — Email sync issue (P3)\n• INC001289 — Laptop refresh request (P4)\n\n**Related Jira Tickets:**\n• JIRA-567 — "Investigate VPN gateway timeout" (linked to INC001234)\n• JIRA-582 — "O365 connector config update"\n• JIRA-590 — "Hardware procurement automation"\n• JIRA-601 — "SSO login failure triage"\n• JIRA-612 — "Network monitoring dashboard"\n\n*INC001234 is linked to JIRA-567 — both relate to the VPN gateway issue reported Tuesday.*', timing: 1850 },
+        ],
+      },
+      // Scenario 2: Vendor Risk with Approval Gate
+      {
+        id: 'vendor-risk-approval',
+        name: 'Vendor Risk + Approval Gate',
+        description: 'High-risk vendor access request triggering human-in-the-loop approval',
+        query: 'Grant admin access to the ProcessUnity staging environment for vendor onboarding',
+        activeNodes: [
+          'helpbot-chat', 'nat-serve', 'workflow-config', 'react-agent', 'intent-classify',
+          'tool-select', 'approval-gate', 'a2a-delegate', 'domain-vendor', 'domain-identity',
+          'pu-rest', 'pu-ai', 'sailpoint-rest',
+          'llm-orchestration', 'llm-summarize', 'nim-services',
+          'observability', 'state-store', 'helpbot-approvals',
+        ],
+        chosenPath: ['domain-vendor', 'domain-identity'],
+        events: [
+          { id: 'e1', message: '`nat serve` received POST /chat', timing: 0, status: 'completed', nodeIds: ['helpbot-chat', 'nat-serve'] },
+          { id: 'e2', message: 'Loaded workflow config: meta_orchestrator.yml', timing: 50, status: 'completed', nodeIds: ['workflow-config'] },
+          { id: 'e3', message: '`react_agent` workflow started', timing: 80, status: 'completed', nodeIds: ['react-agent'] },
+          { id: 'e4', message: 'LLM orchestration call for intent classification (580ms)', timing: 100, status: 'running', nodeIds: ['react-agent', 'llm-orchestration'] },
+          { id: 'e5', message: 'Intent classified: Vendor Risk / access_grant', timing: 680, status: 'completed', nodeIds: ['intent-classify'] },
+          { id: 'e6', message: 'Selected tools: `processunity_get_vendor_risk`, `sailpoint_provision_access`', timing: 730, status: 'completed', nodeIds: ['tool-select'] },
+          { id: 'e7', message: '⚠️ High-risk action detected: `grant_admin_access`. Awaiting confirmation.', timing: 760, status: 'running', nodeIds: ['approval-gate'] },
+          { id: 'e8', message: 'Approval request pushed to HelpBot Approvals panel', timing: 800, status: 'completed', nodeIds: ['helpbot-approvals'] },
+          { id: 'e9', message: '✅ User confirmed. Proceeding with delegated execution.', timing: 2500, status: 'completed', nodeIds: ['approval-gate'] },
+          { id: 'e10', message: 'Delegating to `domain-vendor` and `domain-identity` agents (NeMo A2A)', timing: 2550, status: 'completed', nodeIds: ['a2a-delegate', 'domain-vendor', 'domain-identity'] },
+          { id: 'e11', message: 'ProcessUnity: vendor risk assessment in progress', timing: 2600, status: 'running', nodeIds: ['pu-rest', 'pu-ai'] },
+          { id: 'e12', message: 'ProcessUnity: Vendor risk score 72/100 (Medium) — 3 open findings', timing: 2900, status: 'completed', nodeIds: ['pu-rest'] },
+          { id: 'e12b', message: 'Step-up auth required: SailPoint MFA. Session paused.', timing: 2920, status: 'running', nodeIds: ['sailpoint-rest'] },
+          { id: 'e13', message: 'SailPoint: provisioning admin access to staging environment', timing: 2950, status: 'running', nodeIds: ['sailpoint-rest'] },
+          { id: 'e14', message: 'SailPoint: access provisioned with 30-day expiry, audit trail created', timing: 3200, status: 'completed', nodeIds: ['sailpoint-rest'] },
+          { id: 'e15', message: 'OpenTelemetry span: `tool.processunity` 300ms, `tool.sailpoint` 250ms', timing: 3250, status: 'completed', nodeIds: ['observability'] },
+          { id: 'e16', message: 'Summarization LLM call — composing final response (450ms)', timing: 3300, status: 'running', nodeIds: ['llm-summarize', 'nim-services'] },
+          { id: 'e17', message: 'Response delivered to HelpBot', timing: 3750, status: 'completed', nodeIds: ['nat-serve', 'helpbot-chat'] },
+        ],
+        chatMessages: [
+          { role: 'user', content: 'Grant admin access to the ProcessUnity staging environment for vendor onboarding', timing: 0 },
+          { role: 'system', content: 'Intent classified: Vendor Risk / access_grant', timing: 680 },
+          { role: 'system', content: 'Tools selected: `processunity_get_vendor_risk`, `sailpoint_provision_access`', timing: 730 },
+          { role: 'system', content: '⚠️ Approval required: grant_admin_access to ProcessUnity staging. This is a high-risk action.', timing: 760 },
+          { role: 'system', content: '✅ User confirmed. Proceeding.', timing: 2500 },
+          { role: 'system', content: 'Delegating to Vendor Risk + Identity agents', timing: 2550 },
+          { role: 'system', content: 'ProcessUnity: Risk score 72/100 (Medium) — 3 open findings', timing: 2900 },
+          { role: 'system', content: '🔒 Step-up auth required: SailPoint MFA. Session paused.', timing: 2920 },
+          { role: 'system', content: 'SailPoint: Admin access provisioned (30-day expiry)', timing: 3200 },
+          { role: 'assistant', content: '**Access Granted** ✅\n\nAdmin access to the ProcessUnity staging environment has been provisioned:\n\n**Vendor Risk Assessment:**\n• Risk Score: 72/100 (Medium)\n• Open Findings: 3 (2 low, 1 medium)\n• Last Assessment: 2025-12-15\n• Recommendation: Proceed with monitoring\n\n**Access Details:**\n• Role: Admin (staging only)\n• Expiry: 30 days (auto-revoke Mar 21, 2026)\n• Audit Trail: Created in SailPoint\n• MFA: Required for all sessions\n\n**Next Steps:**\n• Review open findings in ProcessUnity dashboard\n• Complete vendor onboarding checklist\n• Schedule security review before production access\n\n*Approval logged. Audit reference: APR-2026-0219-001*', timing: 3750 },
         ],
       },
     ],

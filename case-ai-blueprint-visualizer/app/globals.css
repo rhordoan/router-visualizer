@@ -42,6 +42,14 @@
 		animation: flow 2s linear infinite;
 	}
 
+	.otel-badge-fade {
+		animation: otel-fade 2.5s ease-in-out forwards;
+	}
+
+	.a2a-scan-line {
+		animation: a2a-scan 1.2s ease-in-out infinite;
+	}
+
 	.gradient-border {
 		position: relative;
 		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -77,11 +85,13 @@
 }
 
 @keyframes glow-pulse {
+
 	0%,
 	100% {
 		box-shadow: 0 0 20px rgba(139, 92, 246, 0.5),
 			0 0 40px rgba(139, 92, 246, 0.3), 0 0 60px rgba(139, 92, 246, 0.1);
 	}
+
 	50% {
 		box-shadow: 0 0 30px rgba(139, 92, 246, 0.8),
 			0 0 60px rgba(139, 92, 246, 0.5), 0 0 90px rgba(139, 92, 246, 0.2);
@@ -92,6 +102,7 @@
 	0% {
 		stroke-dashoffset: 24;
 	}
+
 	100% {
 		stroke-dashoffset: 0;
 	}
@@ -101,10 +112,94 @@
 	0% {
 		background-position: 0% 50%;
 	}
+
 	50% {
 		background-position: 100% 50%;
 	}
+
 	100% {
 		background-position: 0% 50%;
+	}
+}
+
+@keyframes otel-fade {
+	0% {
+		opacity: 0;
+	}
+
+	12% {
+		opacity: 1;
+	}
+
+	80% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0;
+	}
+}
+
+@keyframes a2a-scan {
+
+	0%,
+	100% {
+		opacity: 0.15;
+	}
+
+	50% {
+		opacity: 0.5;
+	}
+}
+
+@keyframes thought-loop-spin {
+	from {
+		transform-origin: center;
+		transform: rotate(0deg);
+	}
+
+	to {
+		transform-origin: center;
+		transform: rotate(360deg);
+	}
+}
+
+@layer components {
+	.thought-loop-spin {
+		animation: thought-loop-spin 3s linear infinite;
+		transform-box: fill-box;
+		transform-origin: center;
+	}
+
+	.nat-eval-spin {
+		animation: nat-eval-ring 1.2s linear infinite;
+		transform-box: fill-box;
+		transform-origin: center;
+	}
+
+	.auth-lock-pulse {
+		animation: auth-lock-glow 1.5s ease-in-out infinite;
+	}
+}
+
+@keyframes nat-eval-ring {
+	from {
+		transform: rotate(0deg);
+	}
+
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes auth-lock-glow {
+
+	0%,
+	100% {
+		opacity: 0.7;
+	}
+
+	50% {
+		opacity: 1;
 	}
 }

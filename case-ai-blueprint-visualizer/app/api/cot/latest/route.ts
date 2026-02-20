@@ -19,9 +19,9 @@ export async function GET() {
 
     // Forward request to HealthChat backend
     const backendUrl = `${healthchatBackendUrl}/api/v1/cot/realtime/latest`;
-    
+
     console.log(`[CoT Proxy] Fetching from: ${backendUrl}`);
-    
+
     const response = await fetch(backendUrl, {
       method: 'GET',
       headers,
@@ -46,14 +46,14 @@ export async function GET() {
 
     // Parse and return data
     const data = await response.json();
-    
+
     console.log(`[CoT Proxy] Successfully fetched message_id: ${data?.message_id}, assistant_response length: ${data?.assistant_response?.length || 0}`);
     if (data?.assistant_response) {
       console.log(`[CoT Proxy] Assistant response preview: "${data.assistant_response.substring(0, 100)}..."`);
     } else {
       console.log(`[CoT Proxy] Assistant response is EMPTY or missing`);
     }
-    
+
     return NextResponse.json(data, {
       status: 200,
       headers: {
@@ -70,9 +70,9 @@ export async function GET() {
 
   } catch (error) {
     console.error('[CoT Proxy] Error:', error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to fetch from HealthChat backend',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

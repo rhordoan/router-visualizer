@@ -1,6 +1,6 @@
 'use client';
 
-import { NodeStatus } from '@/lib/types';
+import { NodeStatus, EventStep } from '@/lib/types';
 
 interface NodeTooltipProps {
   title: string;
@@ -9,6 +9,8 @@ interface NodeTooltipProps {
   visible: boolean;
   x: number;
   y: number;
+  nodeId?: string;
+  events?: EventStep[];
 }
 
 const getStatusLabel = (status: NodeStatus): string => {
@@ -45,36 +47,39 @@ const getStatusStyle = (status: NodeStatus) => {
   }
 };
 
-export default function NodeTooltip({ title, description, status, visible, x, y }: NodeTooltipProps) {
+export default function NodeTooltip({ title, description, status, visible, x, y, nodeId, events }: NodeTooltipProps) {
   if (!visible) return null;
 
   // Calculate tooltip position to keep it within viewport
   const tooltipWidth = 320; // max-w-sm is approximately 320px
   const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
-  
+
   let translateX = '-50%'; // Center by default
   let adjustedX = x;
   let arrowLeftPosition = '50%';
   let arrowTransform = 'translateX(-50%)';
-  
+
   // Check if tooltip would go off left edge
   if (x - tooltipWidth / 2 < 20) {
     translateX = '0%';
     adjustedX = 20;
-    // Arrow should be centered on the node, not the tooltip
     const arrowLeft = x - adjustedX;
     arrowLeftPosition = `${arrowLeft}px`;
-    arrowTransform = 'translateX(-50%)'; // Center the arrow itself
+    arrowTransform = 'translateX(-50%)';
   }
   // Check if tooltip would go off right edge
   else if (x + tooltipWidth / 2 > viewportWidth - 20) {
     translateX = '-100%';
     adjustedX = viewportWidth - 20;
-    // Arrow should be centered on the node
     const arrowLeft = x - (adjustedX - tooltipWidth);
     arrowLeftPosition = `${arrowLeft}px`;
-    arrowTransform = 'translateX(-50%)'; // Center the arrow itself
+    arrowTransform = 'translateX(-50%)';
   }
+
+  // Build profiler spans for observability node
+  const isObservability = nodeId === 'observability';
+  const completedEvents = events?.filter(e => e.status === 'completed' || e.status === 'running') || [];
+  const profilerSpans = isObservability && completedEvents.length > 0 ? buildProfilerSpans(completedEvents) : [];
 
   return (
     <div
@@ -91,8 +96,33 @@ export default function NodeTooltip({ title, description, status, visible, x, y 
         <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(status)}`}>
           {getStatusLabel(status)}
         </span>
+
+        {/* Profiler Flame Chart for Observability */}
+        {isObservability && profilerSpans.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-slate-600">
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">NeMo Profiler</h4>
+            <div className="space-y-1">
+              {profilerSpans.map((span, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 font-mono w-24 truncate" style={{ paddingLeft: `${span.depth * 8}px` }}>
+                    {span.label}
+                  </span>
+                  <div className="flex-1 h-3 bg-slate-700 rounded overflow-hidden">
+                    <div
+                      className={`h-full rounded ${span.color}`}
+                      style={{ width: `${span.widthPct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-gray-500 font-mono w-12 text-right">
+                    {span.duration}ms
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-      {/* Arrow - always centered on the node */}
+      {/* Arrow */}
       <div
         className="absolute -bottom-2"
         style={{
@@ -107,5 +137,66 @@ export default function NodeTooltip({ title, description, status, visible, x, y 
       />
     </div>
   );
+}
+
+interface ProfilerSpan {
+  label: string;
+  duration: number;
+  widthPct: number;
+  depth: number;
+  color: string;
+}
+
+function buildProfilerSpans(events: EventStep[]): ProfilerSpan[] {
+  // Extract timing pairs from events to build a simple flame chart
+  const spans: ProfilerSpan[] = [];
+  const totalDuration = Math.max(...events.map(e => e.timing), 1);
+
+  // Map well-known event patterns to spans
+  const spanDefs: { pattern: RegExp; label: string; depth: number; color: string }[] = [
+    { pattern: /react_agent.*started/i, label: 'react_agent', depth: 0, color: 'bg-purple-500' },
+    { pattern: /intent.*classif/i, label: 'intent_classify', depth: 1, color: 'bg-cyan-500' },
+    { pattern: /selected tool/i, label: 'tool_select', depth: 1, color: 'bg-cyan-400' },
+    { pattern: /delegat/i, label: 'a2a_delegate', depth: 1, color: 'bg-purple-400' },
+    { pattern: /servicenow|snow/i, label: 'snow_rest', depth: 2, color: 'bg-slate-400' },
+    { pattern: /jira|atlassian/i, label: 'jira_rest', depth: 2, color: 'bg-slate-400' },
+    { pattern: /processunity/i, label: 'processunity', depth: 2, color: 'bg-slate-400' },
+    { pattern: /sailpoint/i, label: 'sailpoint', depth: 2, color: 'bg-slate-400' },
+    { pattern: /vector|rag|kb article/i, label: 'rag_search', depth: 1, color: 'bg-cyan-300' },
+    { pattern: /summariz/i, label: 'llm_summarize', depth: 1, color: 'bg-pink-400' },
+    { pattern: /orchestration call/i, label: 'llm_orch', depth: 1, color: 'bg-purple-300' },
+    { pattern: /approval|confirm/i, label: 'approval_gate', depth: 1, color: 'bg-amber-400' },
+  ];
+
+  for (const def of spanDefs) {
+    // Find matching events to compute duration
+    const matching = events.filter(e => def.pattern.test(e.message));
+    if (matching.length > 0) {
+      // Estimate duration from timing gap or use 200ms default
+      const firstTiming = Math.min(...matching.map(e => e.timing));
+      const lastTiming = Math.max(...matching.map(e => e.timing));
+      const dur = lastTiming > firstTiming ? lastTiming - firstTiming : 200;
+      spans.push({
+        label: def.label,
+        duration: dur,
+        widthPct: Math.max((dur / totalDuration) * 100, 5),
+        depth: def.depth,
+        color: def.color,
+      });
+    }
+  }
+
+  // Add overall react_agent span if not present
+  if (spans.length > 0 && !spans.find(s => s.label === 'react_agent')) {
+    spans.unshift({
+      label: 'react_agent',
+      duration: totalDuration,
+      widthPct: 100,
+      depth: 0,
+      color: 'bg-purple-500',
+    });
+  }
+
+  return spans;
 }
 

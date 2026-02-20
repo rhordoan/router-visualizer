@@ -89,18 +89,24 @@ export class AnimationEngine {
 
     const currentEvent = this.scenario.events[this.state.currentStep];
     this.executeStep(this.state.currentStep);
-    
     this.state.currentStep++;
+
+    // Auto-pause when the approval gate becomes active — requires human confirmation
+    const isApprovalGateWaiting = currentEvent.nodeIds.includes('approval-gate') &&
+      currentEvent.status === 'running';
+    if (isApprovalGateWaiting) {
+      this.state.isPlaying = false;
+      this.notifyStateChange();
+      return;
+    }
+
     this.notifyStateChange();
 
     // Calculate delay based on timing difference and speed
-    // Speed multiplier: higher values = faster animation, lower values = slower
-    let delay = 2000; // Default 2 seconds
+    let delay = 2000;
     if (this.state.currentStep < this.scenario.events.length) {
       const nextEvent = this.scenario.events[this.state.currentStep];
       const timingDiff = nextEvent.timing - currentEvent.timing;
-      // Multiply by 3 to make animation significantly slower
-      // At speed=1, animation is 3x slower than original
       delay = Math.max(500, (timingDiff * 3) / this.state.speed);
     }
 

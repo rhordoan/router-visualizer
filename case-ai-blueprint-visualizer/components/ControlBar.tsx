@@ -63,7 +63,7 @@ export default function ControlBar({
                   <Info className="w-4 h-4 text-gray-400 hover:text-gray-300 cursor-help" />
                 </Tooltip>
               </div>
-              <div className="text-gray-100 text-sm font-medium px-3 py-2 rounded-lg line-clamp-2 overflow-hidden" style={{ minHeight: '42px', maxHeight: '42px' }}>
+              <div className="text-gray-100 text-sm font-medium px-3 py-2 rounded-lg line-clamp-3 overflow-hidden" style={{ minHeight: '42px', maxHeight: '63px' }}>
                 {currentScenarioDescription || 'Select a scenario'}
               </div>
             </div>
@@ -94,9 +94,8 @@ export default function ControlBar({
               value={scenarioId}
               onChange={(e) => onScenarioChange(e.target.value)}
               disabled={isHealthChatMode}
-              className={`w-full bg-slate-800 border-2 border-slate-600 rounded-lg px-4 py-2.5 text-gray-100 text-sm font-medium focus:outline-none focus:border-purple-500 hover:border-slate-500 transition-colors ${
-                isHealthChatMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-              }`}
+              className={`w-full bg-slate-800 border-2 border-slate-600 rounded-lg px-4 py-2.5 text-gray-100 text-sm font-medium focus:outline-none focus:border-purple-500 hover:border-slate-500 transition-colors ${isHealthChatMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
               title={isHealthChatMode ? 'Scenario is fixed for HealthChat (real-time data)' : ''}
             >
               {scenarios.map((scenario) => (
@@ -116,15 +115,12 @@ export default function ControlBar({
               <button
                 onClick={onPlay}
                 disabled={isHealthChatMode}
-                className={`w-12 h-12 rounded-xl ${
-                  isPlaying
+                className={`w-12 h-12 rounded-xl ${isPlaying
                     ? 'bg-gradient-to-br from-purple-600 to-pink-600'
                     : 'bg-gradient-to-br from-blue-600 to-cyan-600'
-                } border-2 ${
-                  isPlaying ? 'border-purple-400' : 'border-blue-400'
-                } flex items-center justify-center hover:scale-110 transition-all duration-200 card-shadow active:scale-95 ${
-                  isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''
-                }`}
+                  } border-2 ${isPlaying ? 'border-purple-400' : 'border-blue-400'
+                  } flex items-center justify-center hover:scale-110 transition-all duration-200 card-shadow active:scale-95 ${isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''
+                  }`}
               >
                 {isPlaying ? (
                   <Pause className="w-5 h-5 text-white" fill="white" />
@@ -138,9 +134,8 @@ export default function ControlBar({
               <button
                 onClick={onNext}
                 disabled={isHealthChatMode}
-                className={`w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 flex items-center justify-center hover:scale-110 hover:border-slate-500 transition-all duration-200 card-shadow active:scale-95 ${
-                  isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100 hover:border-slate-600' : ''
-                }`}
+                className={`w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 flex items-center justify-center hover:scale-110 hover:border-slate-500 transition-all duration-200 card-shadow active:scale-95 ${isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100 hover:border-slate-600' : ''
+                  }`}
               >
                 <SkipForward className="w-5 h-5 text-gray-200" />
               </button>
@@ -172,13 +167,11 @@ export default function ControlBar({
                 value={speed}
                 onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
                 disabled={isHealthChatMode}
-                className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${
-                  isHealthChatMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                }`}
+                className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${isHealthChatMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                  }`}
                 style={{
-                  background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${
-                    ((speed - 0.5) / 2.5) * 100
-                  }%, #334155 ${((speed - 0.5) / 2.5) * 100}%, #334155 100%)`,
+                  background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((speed - 0.5) / 2.5) * 100
+                    }%, #334155 ${((speed - 0.5) / 2.5) * 100}%, #334155 100%)`,
                 }}
               />
               <style jsx>{`
