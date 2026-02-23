@@ -246,11 +246,15 @@ export default function Home() {
   const isRealTime = isHealthChat || isLlmRouter || isNvidiaRag || isIceChatLive;
   const isMetaOrchestrator = blueprintId === 'meta-orchestrator';
 
-  // Payload Inspector: detect active api_call/native_agent nodes
+  // Payload Inspector: detect active (or completed for real-time) api_call/native_agent nodes.
+  // In the ICE-chat live scenario the server finalises steps as 'completed' before the
+  // poller sees them, so we also accept 'completed' to ensure the panel populates.
   const activeApiNode = isMetaOrchestrator && activeView === 'map'
-    ? animationState.nodes.find(n =>
-        (n.type === 'api_call' || n.type === 'native_agent') && n.status === 'active' && payloadSamples[n.id]
-      )
+    ? animationState.nodes.find(n => {
+        if (n.type !== 'api_call' && n.type !== 'native_agent') return false;
+        if (!payloadSamples[n.id]) return false;
+        return n.status === 'active' || (isIceChatLive && n.status === 'completed');
+      })
     : null;
   const currentPayload = activeApiNode ? payloadSamples[activeApiNode.id] : null;
 

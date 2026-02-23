@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { connectors } from '@/lib/connectorData';
+import { useState, useEffect } from 'react';
 import { ConnectorCard, ConnectorTool } from '@/lib/types';
-import { Globe, ChevronDown, ChevronRight, Server, Cpu, Package } from 'lucide-react';
+import { Globe, ChevronDown, ChevronRight, Server, Cpu, Package, RefreshCw, WifiOff } from 'lucide-react';
 
 const methodColors: Record<string, string> = {
   GET: 'bg-green-600/30 text-green-400 border-green-500/40',
@@ -168,17 +167,87 @@ function Card({ connector }: { connector: ConnectorCard }) {
   );
 }
 
+function SkeletonCard() {
+  return (
+    <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700 rounded-xl overflow-hidden card-shadow-lg animate-pulse">
+      <div className="px-5 pt-5 pb-3 border-b border-slate-700/60">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-slate-800" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3 bg-slate-700 rounded w-3/4" />
+            <div className="h-2.5 bg-slate-800 rounded w-1/2" />
+          </div>
+        </div>
+      </div>
+      <div className="px-5 py-3 space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-2.5 bg-slate-800 rounded w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ConnectorRegistry() {
+  const [connectors, setConnectors] = useState<ConnectorCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchConnectors = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/connectors');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: ConnectorCard[] = await res.json();
+      setConnectors(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load connectors');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchConnectors(); }, []);
+
+  const offlineCount = connectors.filter(c => c.status === 'offline').length;
+
   return (
     <div className="h-full overflow-y-auto pr-2">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white text-shadow">Connector Registry</h2>
-        <p className="text-sm text-gray-400 mt-1">Tool Registry — all NeMo function connectors</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-white text-shadow">Connector Registry</h2>
+          <p className="text-sm text-gray-400 mt-1">Tool Registry — all NeMo function connectors</p>
+        </div>
+        <button
+          onClick={fetchConnectors}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-600 text-xs text-gray-400 hover:text-white hover:border-slate-500 transition-colors disabled:opacity-40"
+        >
+          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
       </div>
+
+      {/* Backend status banner */}
+      {!loading && offlineCount > 0 && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs">
+          <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+          ICE-Chat backend unreachable — showing connector stubs. Start the backend to load live tool schemas and call counts.
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+          Could not reach /api/connectors: {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 pb-6">
-        {connectors.map(c => (
-          <Card key={c.id} connector={c} />
-        ))}
+        {loading
+          ? [1, 2, 3, 4].map(i => <SkeletonCard key={i} />)
+          : connectors.map(c => <Card key={c.id} connector={c} />)
+        }
       </div>
     </div>
   );
