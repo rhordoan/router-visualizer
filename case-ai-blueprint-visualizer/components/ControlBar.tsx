@@ -26,6 +26,10 @@ interface ControlBarProps {
   ragQuery?: string;
   onRagQueryChange?: (value: string) => void;
   onRagSend?: () => void;
+  // ICE-Chat live run controls (optional)
+  iceChatPrompt?: string;
+  onIceChatPromptChange?: (value: string) => void;
+  onIceChatSend?: () => void;
 }
 
 export default function ControlBar({
@@ -49,6 +53,9 @@ export default function ControlBar({
   ragQuery,
   onRagQueryChange,
   onRagSend,
+  iceChatPrompt,
+  onIceChatPromptChange,
+  onIceChatSend,
 }: ControlBarProps) {
   return (
     <div className="gradient-bg border border-slate-700 rounded-xl p-6 mb-6 card-shadow-lg">
@@ -249,6 +256,32 @@ export default function ControlBar({
                 className="w-full lg:w-auto px-5 py-2.5 rounded-lg bg-gradient-to-br from-green-600 to-emerald-600 border-2 border-green-400 text-white text-sm font-bold hover:scale-[1.02] transition-all duration-200 card-shadow active:scale-[0.99]"
               >
                 Query
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ICE-Chat live query bar (only when handlers are provided) */}
+      {onIceChatSend && onIceChatPromptChange && typeof iceChatPrompt === 'string' && (
+        <div className="mt-6 pt-6 border-t border-slate-700">
+          <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end">
+            <div className="flex-1">
+              <label className="block text-white text-xs font-bold mb-2">Ask ICE-Chat</label>
+              <input
+                value={iceChatPrompt}
+                onChange={(e) => onIceChatPromptChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && onIceChatSend()}
+                placeholder="Type an IT query to route through the meta-orchestrator…"
+                className="w-full bg-slate-800 border-2 border-slate-600 rounded-lg px-4 py-2.5 text-gray-100 text-sm font-medium focus:outline-none focus:border-cyan-500 hover:border-slate-500 transition-colors"
+              />
+            </div>
+            <div className="flex-shrink-0">
+              <button
+                onClick={onIceChatSend}
+                className="w-full lg:w-auto px-5 py-2.5 rounded-lg bg-gradient-to-br from-cyan-600 to-blue-600 border-2 border-cyan-400 text-white text-sm font-bold hover:scale-[1.02] transition-all duration-200 card-shadow active:scale-[0.99]"
+              >
+                Send
               </button>
             </div>
           </div>

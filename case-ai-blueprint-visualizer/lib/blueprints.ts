@@ -1100,6 +1100,16 @@ export const blueprints: Blueprint[] = [
           { role: 'assistant', content: '**Access Granted** ✅\n\nAdmin access to the ProcessUnity staging environment has been provisioned:\n\n**Vendor Risk Assessment:**\n• Risk Score: 72/100 (Medium)\n• Open Findings: 3 (2 low, 1 medium)\n• Last Assessment: 2025-12-15\n• Recommendation: Proceed with monitoring\n\n**Access Details:**\n• Role: Admin (staging only)\n• Expiry: 30 days (auto-revoke Mar 21, 2026)\n• Audit Trail: Created in SailPoint\n• MFA: Required for all sessions\n\n**Next Steps:**\n• Review open findings in ProcessUnity dashboard\n• Complete vendor onboarding checklist\n• Schedule security review before production access\n\n*Approval logged. Audit reference: APR-2026-0219-001*', timing: 3750 },
         ],
       },
+      {
+        id: 'ice-chat-live',
+        name: 'Live ICE-Chat',
+        description: 'Real-time: type a query and watch it route through the meta-orchestrator live',
+        query: '',
+        activeNodes: [],
+        chosenPath: [],
+        events: [],
+        chatMessages: [],
+      },
     ],
   },
 ];

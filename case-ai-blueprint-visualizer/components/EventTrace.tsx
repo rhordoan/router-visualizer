@@ -270,7 +270,9 @@ export default function EventTrace({ events, chatMessages, currentStep, complete
                     <span className="text-xs font-bold capitalize">{msg.role}</span>
                     <span className="text-xs text-gray-400 ml-auto font-mono">{msg.timing}ms</span>
                   </div>
-                  <p className="text-sm whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+                  <p className="text-sm whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: msg.content
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/"([^"\n]+)"/g, '<strong>$1</strong>') }} />
                 </div>
               );
             })}

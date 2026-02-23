@@ -9,6 +9,8 @@ import { LlmRouterAnimationEngine } from '@/lib/llmRouterAnimationEngine';
 import { routerTraceService } from '@/lib/routerTraceService';
 import { RAGAnimationEngine } from '@/lib/ragAnimationEngine';
 import { ragTraceService } from '@/lib/ragTraceService';
+import { IceChatAnimationEngine } from '@/lib/iceChatAnimationEngine';
+import { iceChatTraceService } from '@/lib/iceChatTraceService';
 import ControlBar from '@/components/ControlBar';
 import BlueprintMap from '@/components/BlueprintMap';
 import EventTrace from '@/components/EventTrace';
@@ -26,13 +28,14 @@ export default function Home() {
   const [animationState, setAnimationState] = useState<AnimationState | null>(null);
   const [llmRouterPrompt, setLlmRouterPrompt] = useState('Explain quantum computing');
   const [ragQuery, setRagQuery] = useState('What are the system requirements for deploying NVIDIA NIM?');
+  const [iceChatPrompt, setIceChatPrompt] = useState('Show me my open incidents and related Jira tickets');
   const [activeView, setActiveView] = useState<ActiveView>('map');
   const [activePayload, setActivePayload] = useState<PayloadInspection | null>(null);
   const [rightPanel, setRightPanel] = useState<'events' | 'payload'>('events');
   const [yamlEditorOpen, setYamlEditorOpen] = useState(false);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const animationEngineRef = useRef<
-    AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | RAGAnimationEngine | null
+    AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | RAGAnimationEngine | IceChatAnimationEngine | null
   >(null);
 
   const currentBlueprint = getBlueprintById(blueprintId);
@@ -46,8 +49,9 @@ export default function Home() {
     const isHealthChat = blueprintId === 'healthchat';
     const isLlmRouter = blueprintId === 'llm-routing';
     const isNvidiaRag = blueprintId === 'nvidia-rag';
+    const isIceChatLive = blueprintId === 'meta-orchestrator' && scenarioId === 'ice-chat-live';
 
-    let engine: AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | RAGAnimationEngine;
+    let engine: AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | RAGAnimationEngine | IceChatAnimationEngine;
 
     if (isHealthChat) {
       // HealthChat real-time mode
@@ -90,6 +94,19 @@ export default function Home() {
       if (!ragTraceService.isPolling()) {
         (engine as RAGAnimationEngine).start();
       }
+    } else if (isIceChatLive) {
+      engine = new IceChatAnimationEngine(
+        currentBlueprint,
+        currentScenario,
+        (state) => {
+          setAnimationState(state);
+        },
+        iceChatTraceService
+      );
+
+      if (!iceChatTraceService.isPolling()) {
+        (engine as IceChatAnimationEngine).start();
+      }
     } else {
       // Standard mock-data mode
       engine = new AnimationEngine(
@@ -115,6 +132,9 @@ export default function Home() {
       }
       if (isNvidiaRag && animationEngineRef.current) {
         (animationEngineRef.current as RAGAnimationEngine).stop();
+      }
+      if (isIceChatLive && animationEngineRef.current) {
+        (animationEngineRef.current as IceChatAnimationEngine).stop();
       }
       animationEngineRef.current = null;
     };
@@ -199,6 +219,18 @@ export default function Home() {
     }
   };
 
+  const handleIceChatSend = async () => {
+    try {
+      await fetch('/api/ice-chat/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: iceChatPrompt }),
+      });
+    } catch {
+      // swallow; trace endpoint will surface errors via polling
+    }
+  };
+
   if (!currentBlueprint || !currentScenario || !animationState) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -210,7 +242,8 @@ export default function Home() {
   const isHealthChat = blueprintId === 'healthchat';
   const isLlmRouter = blueprintId === 'llm-routing';
   const isNvidiaRag = blueprintId === 'nvidia-rag';
-  const isRealTime = isHealthChat || isLlmRouter || isNvidiaRag;
+  const isIceChatLive = blueprintId === 'meta-orchestrator' && scenarioId === 'ice-chat-live';
+  const isRealTime = isHealthChat || isLlmRouter || isNvidiaRag || isIceChatLive;
   const isMetaOrchestrator = blueprintId === 'meta-orchestrator';
 
   // Payload Inspector: detect active api_call/native_agent nodes
@@ -254,13 +287,16 @@ export default function Home() {
           onReset={handleReset}
           onSpeedChange={handleSpeedChange}
           currentScenarioDescription={currentScenario.description}
-          isHealthChatMode={isRealTime}
+          isHealthChatMode={isHealthChat || isLlmRouter || isNvidiaRag}
           llmRouterPrompt={isLlmRouter ? llmRouterPrompt : undefined}
           onLlmRouterPromptChange={isLlmRouter ? setLlmRouterPrompt : undefined}
           onLlmRouterSend={isLlmRouter ? handleLlmRouterSend : undefined}
           ragQuery={isNvidiaRag ? ragQuery : undefined}
           onRagQueryChange={isNvidiaRag ? setRagQuery : undefined}
           onRagSend={isNvidiaRag ? handleRagSend : undefined}
+          iceChatPrompt={isIceChatLive ? iceChatPrompt : undefined}
+          onIceChatPromptChange={isIceChatLive ? setIceChatPrompt : undefined}
+          onIceChatSend={isIceChatLive ? handleIceChatSend : undefined}
         />
       )}
 
