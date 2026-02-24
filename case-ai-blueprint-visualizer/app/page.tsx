@@ -271,11 +271,16 @@ export default function Home() {
   const isRealTime = isHealthChat || isLlmRouter || isNvidiaRag || isIceChatLive;
   const isMetaOrchestrator = blueprintId === 'meta-orchestrator';
 
-  // For ICE-chat live: pull real payload data from the engine's livePayloads map
+  // For ICE-chat live: pull real payload data + profiler spans from the engine
   const iceChatLivePayloads: Record<string, PayloadInspection> =
     isIceChatLive && animationEngineRef.current instanceof IceChatAnimationEngine
       ? animationEngineRef.current.livePayloads
       : {};
+
+  const iceChatLiveProfilerSpans =
+    isIceChatLive && animationEngineRef.current instanceof IceChatAnimationEngine
+      ? animationEngineRef.current.liveProfilerSpans
+      : undefined;
 
   // Payload Inspector: detect active (or completed for real-time) api_call/native_agent nodes.
   // In the ICE-chat live scenario steps finish as 'completed' before the poller sees them as
@@ -359,6 +364,7 @@ export default function Home() {
               onApprovalDeny={handleReset}
               onYamlOpen={isMetaOrchestrator ? () => setYamlEditorOpen(true) : undefined}
               highlightedNodeId={highlightedNodeId}
+              liveProfilerSpans={iceChatLiveProfilerSpans}
             />
             {/* §8.7 YAML-to-Graph overlay */}
             {isMetaOrchestrator && yamlEditorOpen && (

@@ -53,13 +53,26 @@ export interface Blueprint {
   scenarios: Scenario[];
 }
 
+// §8.2 NeMo Profiler flame chart span
+export interface ProfilerSpan {
+  label: string;
+  duration: number;   // ms
+  widthPct: number;   // 0-100
+  depth: number;      // indentation level
+  color: string;      // Tailwind bg class
+}
+
 // §6 Connector Registry card
 export interface ConnectorTool {
   name: string;
+  description: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
   endpoint: string;
   inputSchema: Record<string, unknown>;
   outputSchema: Record<string, unknown>;
+  callsToday: number;
+  errorCount: number;
+  requiresConfirmation: boolean;
 }
 
 export interface ConnectorCard {

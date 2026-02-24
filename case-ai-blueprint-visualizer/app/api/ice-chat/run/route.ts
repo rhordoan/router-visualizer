@@ -52,6 +52,7 @@ const mkStep = (
   args?: Record<string, unknown>,
   result?: unknown,
   schema?: Record<string, unknown>,
+  durationMs?: number,
 ): IceChatTraceStep => ({
   id: `${runId}:${stepType}`,
   step_type: stepType,
@@ -59,7 +60,7 @@ const mkStep = (
   node_ids: nodeIds,
   status,
   timestamp: new Date(atMs).toISOString(),
-  duration_ms: null,
+  duration_ms: durationMs ?? null,
   description,
   tool,
   system,
@@ -151,7 +152,7 @@ export async function POST(req: Request) {
     const finalSteps: IceChatTraceStep[] = [
       mkStep(runId, 'helpbot-chat-recv', 'Query received', ['helpbot-chat', 'nat-serve'], 'completed', t(0)),
       mkStep(runId, 'workflow-config', 'Config loaded', ['workflow-config'], 'completed', t(10)),
-      mkStep(runId, 'react-agent-start', 'Agent started', ['react-agent'], 'completed', t(20)),
+      mkStep(runId, 'react-agent-start', 'Agent started', ['react-agent'], 'completed', t(20), null, undefined, undefined, undefined, undefined, undefined, totalDurationMs),
       mkStep(runId, 'llm-orchestration', 'Intent classification', ['llm-orchestration', 'nim-services'], 'completed', t(30)),
       mkStep(runId, 'intent-classify', 'Intent classified: IT operations', ['intent-classify'], 'completed', t(40)),
       mkStep(runId, 'tool-select', 'Tools selected', ['tool-select', 'tool-registry'], finalStatus, t(50)),
@@ -182,6 +183,7 @@ export async function POST(req: Request) {
           item.args,
           item.result,
           item.schema,
+          item.duration_ms,
         )
       );
     }

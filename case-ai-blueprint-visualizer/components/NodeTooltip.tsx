@@ -1,6 +1,6 @@
 'use client';
 
-import { NodeStatus, EventStep } from '@/lib/types';
+import { NodeStatus, EventStep, ProfilerSpan } from '@/lib/types';
 
 interface NodeTooltipProps {
   title: string;
@@ -11,6 +11,8 @@ interface NodeTooltipProps {
   y: number;
   nodeId?: string;
   events?: EventStep[];
+  /** Live profiler spans from the ICE-chat engine — overrides the event-derived spans */
+  liveProfilerSpans?: ProfilerSpan[];
 }
 
 const getStatusLabel = (status: NodeStatus): string => {
@@ -47,7 +49,7 @@ const getStatusStyle = (status: NodeStatus) => {
   }
 };
 
-export default function NodeTooltip({ title, description, status, visible, x, y, nodeId, events }: NodeTooltipProps) {
+export default function NodeTooltip({ title, description, status, visible, x, y, nodeId, events, liveProfilerSpans }: NodeTooltipProps) {
   if (!visible) return null;
 
   // Calculate tooltip position to keep it within viewport
@@ -76,10 +78,14 @@ export default function NodeTooltip({ title, description, status, visible, x, y,
     arrowTransform = 'translateX(-50%)';
   }
 
-  // Build profiler spans for observability node
+  // Profiler spans: prefer live spans from the engine, fall back to event-derived spans
   const isObservability = nodeId === 'observability';
   const completedEvents = events?.filter(e => e.status === 'completed' || e.status === 'running') || [];
-  const profilerSpans = isObservability && completedEvents.length > 0 ? buildProfilerSpans(completedEvents) : [];
+  const profilerSpans = isObservability
+    ? (liveProfilerSpans && liveProfilerSpans.length > 0
+        ? liveProfilerSpans
+        : completedEvents.length > 0 ? buildProfilerSpans(completedEvents) : [])
+    : [];
 
   return (
     <div
@@ -137,14 +143,6 @@ export default function NodeTooltip({ title, description, status, visible, x, y,
       />
     </div>
   );
-}
-
-interface ProfilerSpan {
-  label: string;
-  duration: number;
-  widthPct: number;
-  depth: number;
-  color: string;
 }
 
 function buildProfilerSpans(events: EventStep[]): ProfilerSpan[] {

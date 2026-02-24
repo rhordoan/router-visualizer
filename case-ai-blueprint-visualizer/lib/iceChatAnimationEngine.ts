@@ -1,4 +1,4 @@
-import type { Blueprint, Scenario, EventStep, NodeStatus, PayloadInspection } from './types';
+import type { Blueprint, Scenario, EventStep, NodeStatus, PayloadInspection, ProfilerSpan } from './types';
 import type { AnimationState } from './animationEngine';
 import type { IceChatTraceService } from './iceChatTraceService';
 import type { IceChatTraceSnapshot } from './iceChatTraceTypes';
@@ -23,6 +23,8 @@ export class IceChatAnimationEngine {
   private _waitingForNewRun: boolean = false;
   /** Live payload data keyed by blueprint node ID, populated from real tool call args/results */
   public livePayloads: Record<string, PayloadInspection> = {};
+  /** Live NeMo Profiler spans built from the current snapshot's real tool durations */
+  public liveProfilerSpans: ProfilerSpan[] = [];
 
   constructor(
     blueprint: Blueprint,
@@ -75,7 +77,13 @@ export class IceChatAnimationEngine {
       this.lastRunId = snapshot.run_id;
     }
 
-    this.updateScenarioFromSnapshot(snapshot);
+    // Scenario update is best-effort: if it throws (e.g. buildLiveProfilerSpans fails
+    // for an unexpected snapshot shape), state + notify still run so the map animates.
+    try {
+      this.updateScenarioFromSnapshot(snapshot);
+    } catch (err) {
+      console.error('[IceChatEngine] updateScenarioFromSnapshot error:', err);
+    }
     this.updateStateFromSnapshot(snapshot);
     this.notifyStateChange();
   }
@@ -168,6 +176,13 @@ export class IceChatAnimationEngine {
         };
       }
     }
+
+    // Build NeMo Profiler flame chart spans from real tool durations
+    try {
+      this.liveProfilerSpans = buildLiveProfilerSpans(snapshot);
+    } catch {
+      this.liveProfilerSpans = [];
+    }
   }
 
   private updateStateFromSnapshot(snapshot: IceChatTraceSnapshot): void {
@@ -220,6 +235,7 @@ export class IceChatAnimationEngine {
     // Keep lastRunId so the "waitingForNewRun" guard can still compare against the stale id.
     this._waitingForNewRun = true;
     this.livePayloads = {};
+    this.liveProfilerSpans = [];
     this.state = this.getInitialState();
     // Clear conversation/events immediately so the UI shows a blank slate right away
     // instead of the previous query's data until the new snapshot arrives (~1 s).
@@ -233,4 +249,80 @@ export class IceChatAnimationEngine {
   public pause(): void { /* no-op */ }
   public next(): void { /* no-op */ }
   public setSpeed(_speed?: number): void { /* no-op */ }
+}
+
+// ── Colour palette for profiler spans ────────────────────────────────────────
+
+const SYSTEM_COLORS: Record<string, string> = {
+  'ServiceNow':     'bg-emerald-500',
+  'Jira':           'bg-blue-500',
+  'Microsoft Graph':'bg-indigo-500',
+  'Internal IT Docs':'bg-cyan-500',
+};
+
+function buildLiveProfilerSpans(snapshot: IceChatTraceSnapshot): ProfilerSpan[] {
+  const spans: ProfilerSpan[] = [];
+
+  // Overall agent run from the react-agent-start step (duration_ms = total run time)
+  const agentStep = snapshot.steps.find(s => s.step_type === 'react-agent-start');
+  const totalMs = agentStep?.duration_ms ?? (
+    parseIsoMs(snapshot.last_updated) - parseIsoMs(snapshot.created_at)
+  );
+  if (totalMs <= 0) return [];
+
+  spans.push({
+    label: 'react_agent',
+    duration: Math.round(totalMs),
+    widthPct: 100,
+    depth: 0,
+    color: 'bg-purple-500',
+  });
+
+  // One span per system (ServiceNow, Jira, etc.) using the sum of tool durations
+  const systemDurations = new Map<string, number>();
+  for (const step of snapshot.steps) {
+    if (!step.step_type.startsWith('tool:') || !step.system || !step.duration_ms) continue;
+    systemDurations.set(step.system, (systemDurations.get(step.system) ?? 0) + step.duration_ms);
+  }
+
+  for (const [system, dur] of systemDurations.entries()) {
+    spans.push({
+      label: system.replace('Microsoft ', 'MS ').replace('Internal IT Docs', 'IT Docs'),
+      duration: Math.round(dur),
+      widthPct: Math.max((dur / totalMs) * 100, 4),
+      depth: 1,
+      color: SYSTEM_COLORS[system] ?? 'bg-slate-400',
+    });
+  }
+
+  // Individual tool calls (depth 2) — only if they have a real duration
+  for (const step of snapshot.steps) {
+    if (!step.step_type.startsWith('tool:') || !step.tool || !step.duration_ms) continue;
+    spans.push({
+      label: step.tool,
+      duration: Math.round(step.duration_ms),
+      widthPct: Math.max((step.duration_ms / totalMs) * 100, 2),
+      depth: 2,
+      color: SYSTEM_COLORS[step.system ?? ''] ?? 'bg-slate-500',
+    });
+  }
+
+  // LLM summarization — comes from the llm-summarize step timing
+  const summarizeStep = snapshot.steps.find(s => s.step_type === 'llm-summarize');
+  const agentStartMs = parseIsoMs(snapshot.created_at);
+  if (summarizeStep) {
+    const summarizeDur = Math.max(
+      parseIsoMs(summarizeStep.timestamp) - agentStartMs,
+      300
+    );
+    spans.push({
+      label: 'llm_summarize',
+      duration: Math.round(summarizeDur),
+      widthPct: Math.max((summarizeDur / totalMs) * 100, 4),
+      depth: 1,
+      color: 'bg-pink-500',
+    });
+  }
+
+  return spans;
 }

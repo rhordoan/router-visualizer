@@ -172,10 +172,14 @@ function toConnectorTool(bt: BackendTool): ConnectorTool {
   const endpoint = ENDPOINT_HINTS[bt.name] ?? `/${bt.name.replace(/_/g, '/')}`;
   return {
     name: bt.name,
+    description: bt.description,
     method,
     endpoint,
     inputSchema: bt.parameters.properties ?? {},
     outputSchema: {},
+    callsToday: bt.calls_today,
+    errorCount: bt.error_count,
+    requiresConfirmation: bt.requires_confirmation,
   };
 }
 

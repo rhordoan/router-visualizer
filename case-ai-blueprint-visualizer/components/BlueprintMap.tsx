@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { BlueprintNode, Connection, NodeStatus, EventStep } from '@/lib/types';
+import { BlueprintNode, Connection, NodeStatus, EventStep, ProfilerSpan } from '@/lib/types';
 import {
   Download,
   AlignLeft,
@@ -52,6 +52,8 @@ interface BlueprintMapProps {
   onApprovalDeny?: () => void;
   onYamlOpen?: () => void;
   highlightedNodeId?: string | null;
+  /** Live NeMo Profiler spans from the ICE-chat engine — shown on Observability node hover */
+  liveProfilerSpans?: ProfilerSpan[];
 }
 
 interface TooltipState {
@@ -335,7 +337,7 @@ const getAuthPendingNodes = (events?: EventStep[], currentStep?: number): Set<st
   return authNodes;
 };
 
-export default function BlueprintMap({ nodes, connections, events, currentStep, completedEvents, onApprovalConfirm, onApprovalDeny, onYamlOpen, highlightedNodeId }: BlueprintMapProps) {
+export default function BlueprintMap({ nodes, connections, events, currentStep, completedEvents, onApprovalConfirm, onApprovalDeny, onYamlOpen, highlightedNodeId, liveProfilerSpans }: BlueprintMapProps) {
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
     title: '',
@@ -461,6 +463,7 @@ export default function BlueprintMap({ nodes, connections, events, currentStep, 
         y={tooltip.y}
         nodeId={tooltip.nodeId}
         events={visibleEvents.length > 0 ? visibleEvents : undefined}
+        liveProfilerSpans={liveProfilerSpans}
       />
       <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700 rounded-xl p-6 h-full flex flex-col card-shadow-lg">
         <h2 className="text-2xl font-bold text-white mb-6 text-shadow">Blueprint Map</h2>

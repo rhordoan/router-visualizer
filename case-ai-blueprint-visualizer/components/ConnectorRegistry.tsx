@@ -19,6 +19,7 @@ const statusColors: Record<string, { dot: string; text: string }> = {
 
 function ToolRow({ tool }: { tool: ConnectorTool }) {
   const [expanded, setExpanded] = useState(false);
+  const hasErrors = tool.errorCount > 0;
   return (
     <div className="border border-slate-700/60 rounded-lg overflow-hidden">
       <button
@@ -26,29 +27,50 @@ function ToolRow({ tool }: { tool: ConnectorTool }) {
         className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-slate-800/50 transition-colors"
       >
         {expanded ? <ChevronDown className="w-3 h-3 text-gray-500 flex-shrink-0" /> : <ChevronRight className="w-3 h-3 text-gray-500 flex-shrink-0" />}
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${methodColors[tool.method]}`}>
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border flex-shrink-0 ${methodColors[tool.method]}`}>
           {tool.method}
         </span>
-        <span className="text-xs font-mono text-gray-300 truncate">{tool.name}</span>
+        <span className="text-xs font-mono text-gray-300 truncate flex-1">{tool.name}</span>
+        {tool.requiresConfirmation && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 flex-shrink-0">confirm</span>
+        )}
+        {tool.callsToday > 0 && (
+          <span className={`text-[9px] font-mono flex-shrink-0 ${hasErrors ? 'text-red-400' : 'text-gray-500'}`}>
+            {tool.callsToday}×{hasErrors ? ` ${tool.errorCount}✗` : ''}
+          </span>
+        )}
       </button>
       {expanded && (
         <div className="px-3 pb-3 space-y-2 border-t border-slate-700/40">
-          <div className="pt-2">
+          {tool.description && (
+            <div className="pt-2">
+              <p className="text-xs text-gray-400 leading-relaxed">{tool.description}</p>
+            </div>
+          )}
+          <div className={tool.description ? '' : 'pt-2'}>
             <span className="text-[10px] text-gray-500 uppercase font-bold">Endpoint</span>
             <p className="text-xs font-mono text-cyan-400 mt-0.5">{tool.endpoint}</p>
           </div>
           <div>
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Input</span>
+            <span className="text-[10px] text-gray-500 uppercase font-bold">Input Schema</span>
             <pre className="text-[11px] font-mono text-gray-400 bg-slate-900/60 rounded p-2 mt-0.5 overflow-x-auto">
               {JSON.stringify(tool.inputSchema, null, 2)}
             </pre>
           </div>
-          <div>
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Output</span>
-            <pre className="text-[11px] font-mono text-gray-400 bg-slate-900/60 rounded p-2 mt-0.5 overflow-x-auto">
-              {JSON.stringify(tool.outputSchema, null, 2)}
-            </pre>
-          </div>
+          {tool.callsToday > 0 && (
+            <div className="flex gap-4">
+              <div>
+                <span className="text-[10px] text-gray-500 uppercase font-bold">Calls today</span>
+                <p className="text-xs text-green-400 font-mono mt-0.5">{tool.callsToday}</p>
+              </div>
+              {tool.errorCount > 0 && (
+                <div>
+                  <span className="text-[10px] text-gray-500 uppercase font-bold">Errors</span>
+                  <p className="text-xs text-red-400 font-mono mt-0.5">{tool.errorCount}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -161,7 +183,15 @@ function Card({ connector }: { connector: ConnectorCard }) {
       {/* Footer */}
       <div className="px-5 py-3 flex justify-between items-center">
         <span className="text-[10px] text-gray-500">Last used: <span className="text-gray-400">{connector.lastUsed}</span></span>
-        <span className="text-[10px] text-gray-500">Calls today: <span className="text-gray-300 font-bold">{connector.callsToday.toLocaleString()}</span></span>
+        <div className="flex items-center gap-3">
+          {(() => {
+            const totalErrors = connector.tools.reduce((s, t) => s + t.errorCount, 0);
+            return totalErrors > 0 ? (
+              <span className="text-[10px] text-red-400">{totalErrors} err</span>
+            ) : null;
+          })()}
+          <span className="text-[10px] text-gray-500">Calls: <span className="text-gray-300 font-bold">{connector.callsToday.toLocaleString()}</span></span>
+        </div>
       </div>
     </div>
   );
