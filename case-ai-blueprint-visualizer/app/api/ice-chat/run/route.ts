@@ -8,6 +8,9 @@ interface IceChatToolTraceItem {
   system: string;
   success: boolean;
   duration_ms: number;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  schema?: Record<string, unknown>;
 }
 
 interface IceChatResponse {
@@ -46,6 +49,9 @@ const mkStep = (
   description: string | null = null,
   tool?: string,
   system?: string,
+  args?: Record<string, unknown>,
+  result?: unknown,
+  schema?: Record<string, unknown>,
 ): IceChatTraceStep => ({
   id: `${runId}:${stepType}`,
   step_type: stepType,
@@ -57,6 +63,9 @@ const mkStep = (
   description,
   tool,
   system,
+  args,
+  result,
+  schema,
 });
 
 /**
@@ -151,6 +160,7 @@ export async function POST(req: Request) {
     ];
 
     // Add one step per unique platform node group (deduped by node ID set)
+    // Keep args/result from the first matching item so the Payload Inspector shows live data.
     const seen = new Set<string>();
     for (const item of toolTrace) {
       const nodeIds = systemToNodeIds(item.system, item.tool);
@@ -169,6 +179,9 @@ export async function POST(req: Request) {
           null,
           item.tool,
           item.system,
+          item.args,
+          item.result,
+          item.schema,
         )
       );
     }

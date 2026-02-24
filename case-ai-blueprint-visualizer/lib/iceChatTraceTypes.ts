@@ -12,6 +12,12 @@ export interface IceChatTraceStep {
   tool?: string;
   /** System of record: "ServiceNow" | "Jira" | "Microsoft Graph" | "Internal IT Docs" */
   system?: string;
+  /** Actual tool call arguments (from agent_service tool_trace) */
+  args?: Record<string, unknown>;
+  /** Actual tool result data or error string */
+  result?: unknown;
+  /** Tool input JSON Schema from the registry contract */
+  schema?: Record<string, unknown>;
 }
 
 export interface IceChatTraceSnapshot {

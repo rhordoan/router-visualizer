@@ -30,6 +30,8 @@ interface ControlBarProps {
   iceChatPrompt?: string;
   onIceChatPromptChange?: (value: string) => void;
   onIceChatSend?: () => void;
+  isIceChatSending?: boolean;
+  isIceChatLive?: boolean;
 }
 
 export default function ControlBar({
@@ -56,6 +58,8 @@ export default function ControlBar({
   iceChatPrompt,
   onIceChatPromptChange,
   onIceChatSend,
+  isIceChatSending = false,
+  isIceChatLive = false,
 }: ControlBarProps) {
   return (
     <div className="gradient-bg border border-slate-700 rounded-xl p-6 mb-6 card-shadow-lg">
@@ -114,56 +118,60 @@ export default function ControlBar({
           </div>
         </div>
 
-        {/* Right side - Controls */}
+        {/* Right side - Controls — fixed layout so switching modes never shifts the bar */}
         <div className="flex items-center gap-6" style={{ paddingTop: '20px' }}>
-          {/* Playback controls */}
+          {/* Playback / live-mode controls — same container width always */}
           <div className="flex items-center gap-3">
-            <Tooltip content={isHealthChatMode ? 'Real-time mode (controls disabled)' : (isPlaying ? 'Pause' : 'Play')}>
-              <button
-                onClick={onPlay}
-                disabled={isHealthChatMode}
-                className={`w-12 h-12 rounded-xl ${isPlaying
-                    ? 'bg-gradient-to-br from-purple-600 to-pink-600'
-                    : 'bg-gradient-to-br from-blue-600 to-cyan-600'
-                  } border-2 ${isPlaying ? 'border-purple-400' : 'border-blue-400'
-                  } flex items-center justify-center hover:scale-110 transition-all duration-200 card-shadow active:scale-95 ${isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''
-                  }`}
-              >
-                {isPlaying ? (
-                  <Pause className="w-5 h-5 text-white" fill="white" />
-                ) : (
-                  <Play className="w-5 h-5 text-white" fill="white" />
-                )}
-              </button>
-            </Tooltip>
-
-            <Tooltip content={isHealthChatMode ? 'Not available in real-time mode' : 'Next Step'}>
-              <button
-                onClick={onNext}
-                disabled={isHealthChatMode}
-                className={`w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 flex items-center justify-center hover:scale-110 hover:border-slate-500 transition-all duration-200 card-shadow active:scale-95 ${isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100 hover:border-slate-600' : ''
-                  }`}
-              >
-                <SkipForward className="w-5 h-5 text-gray-200" />
-              </button>
-            </Tooltip>
-
-            <Tooltip content="Reset">
-              <button
-                onClick={onReset}
-                className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 flex items-center justify-center hover:scale-110 hover:border-slate-500 transition-all duration-200 card-shadow active:scale-95"
-              >
-                <RotateCcw className="w-5 h-5 text-gray-200" />
-              </button>
-            </Tooltip>
+            {isIceChatLive ? (
+              /* Single Stop & Reset button occupying the same slot as the 3 playback buttons */
+              <Tooltip content={isIceChatSending ? 'Stop the current query and reset the map' : 'Reset the map'}>
+                <button
+                  onClick={onReset}
+                  className="flex items-center gap-2 px-4 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 text-gray-200 text-sm font-semibold hover:scale-105 hover:border-slate-500 transition-all duration-200 card-shadow active:scale-95"
+                  style={{ minWidth: '123px' }}
+                >
+                  <RotateCcw className="w-4 h-4 flex-shrink-0" />
+                  {isIceChatSending ? 'Stop & Reset' : 'Reset'}
+                </button>
+              </Tooltip>
+            ) : (
+              <>
+                <Tooltip content={isHealthChatMode ? 'Real-time mode (controls disabled)' : (isPlaying ? 'Pause' : 'Play')}>
+                  <button
+                    onClick={onPlay}
+                    disabled={isHealthChatMode}
+                    className={`w-12 h-12 rounded-xl ${isPlaying ? 'bg-gradient-to-br from-purple-600 to-pink-600' : 'bg-gradient-to-br from-blue-600 to-cyan-600'} border-2 ${isPlaying ? 'border-purple-400' : 'border-blue-400'} flex items-center justify-center hover:scale-110 transition-all duration-200 card-shadow active:scale-95 ${isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''}`}
+                  >
+                    {isPlaying ? <Pause className="w-5 h-5 text-white" fill="white" /> : <Play className="w-5 h-5 text-white" fill="white" />}
+                  </button>
+                </Tooltip>
+                <Tooltip content={isHealthChatMode ? 'Not available in real-time mode' : 'Next Step'}>
+                  <button
+                    onClick={onNext}
+                    disabled={isHealthChatMode}
+                    className={`w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 flex items-center justify-center hover:scale-110 hover:border-slate-500 transition-all duration-200 card-shadow active:scale-95 ${isHealthChatMode ? 'opacity-50 cursor-not-allowed hover:scale-100 hover:border-slate-600' : ''}`}
+                  >
+                    <SkipForward className="w-5 h-5 text-gray-200" />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Reset">
+                  <button
+                    onClick={onReset}
+                    className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-slate-600 flex items-center justify-center hover:scale-110 hover:border-slate-500 transition-all duration-200 card-shadow active:scale-95"
+                  >
+                    <RotateCcw className="w-5 h-5 text-gray-200" />
+                  </button>
+                </Tooltip>
+              </>
+            )}
           </div>
 
           <div className="hidden lg:block h-12 w-px bg-slate-700"></div>
 
           {/* Speed control */}
-          <div className="flex items-center gap-3">
+          <div className={`flex items-center gap-3 ${isIceChatLive ? 'opacity-40 pointer-events-none' : ''}`}>
             <span className="text-white text-sm font-bold whitespace-nowrap" style={{ minWidth: '90px' }}>
-              Speed: <span className={isHealthChatMode ? 'text-gray-500' : 'text-purple-400'}>{isHealthChatMode ? 'Real-time' : `${speed}x`}</span>
+              Speed: <span className={isHealthChatMode || isIceChatLive ? 'text-gray-500' : 'text-purple-400'}>{isHealthChatMode || isIceChatLive ? 'Real-time' : `${speed}x`}</span>
             </span>
             <div className="relative w-32">
               <input
@@ -173,12 +181,10 @@ export default function ControlBar({
                 step="0.5"
                 value={speed}
                 onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-                disabled={isHealthChatMode}
-                className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${isHealthChatMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                  }`}
+                disabled={isHealthChatMode || isIceChatLive}
+                className={`w-full h-2 bg-slate-700 rounded-lg appearance-none ${isHealthChatMode || isIceChatLive ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 style={{
-                  background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((speed - 0.5) / 2.5) * 100
-                    }%, #334155 ${((speed - 0.5) / 2.5) * 100}%, #334155 100%)`,
+                  background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((speed - 0.5) / 2.5) * 100}%, #334155 ${((speed - 0.5) / 2.5) * 100}%, #334155 100%)`,
                 }}
               />
               <style jsx>{`
@@ -192,11 +198,9 @@ export default function ControlBar({
                   border: 3px solid #fff;
                   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
                 }
-
                 input[type='range']::-webkit-slider-thumb:hover {
                   transform: scale(1.1);
                 }
-
                 input[type='range']::-moz-range-thumb {
                   width: 18px;
                   height: 18px;
@@ -262,8 +266,17 @@ export default function ControlBar({
         </div>
       )}
 
-      {/* ICE-Chat live query bar (only when handlers are provided) */}
-      {onIceChatSend && onIceChatPromptChange && typeof iceChatPrompt === 'string' && (
+      {/* ICE-Chat live query bar — always rendered when prompt props exist; grid-row trick for smooth height animation */}
+      {onIceChatPromptChange && typeof iceChatPrompt === 'string' && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateRows: onIceChatSend ? '1fr' : '0fr',
+            opacity: onIceChatSend ? 1 : 0,
+            transition: 'grid-template-rows 220ms ease, opacity 180ms ease',
+          }}
+        >
+        <div style={{ overflow: 'hidden' }}>
         <div className="mt-6 pt-6 border-t border-slate-700">
           <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end">
             <div className="flex-1">
@@ -271,20 +284,32 @@ export default function ControlBar({
               <input
                 value={iceChatPrompt}
                 onChange={(e) => onIceChatPromptChange(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && onIceChatSend()}
+                onKeyDown={(e) => e.key === 'Enter' && !isIceChatSending && onIceChatSend && onIceChatSend()}
+                disabled={isIceChatSending || !onIceChatSend}
                 placeholder="Type an IT query to route through the meta-orchestrator…"
-                className="w-full bg-slate-800 border-2 border-slate-600 rounded-lg px-4 py-2.5 text-gray-100 text-sm font-medium focus:outline-none focus:border-cyan-500 hover:border-slate-500 transition-colors"
+                className="w-full bg-slate-800 border-2 border-slate-600 rounded-lg px-4 py-2.5 text-gray-100 text-sm font-medium focus:outline-none focus:border-cyan-500 hover:border-slate-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
             <div className="flex-shrink-0">
               <button
                 onClick={onIceChatSend}
-                className="w-full lg:w-auto px-5 py-2.5 rounded-lg bg-gradient-to-br from-cyan-600 to-blue-600 border-2 border-cyan-400 text-white text-sm font-bold hover:scale-[1.02] transition-all duration-200 card-shadow active:scale-[0.99]"
+                disabled={isIceChatSending || !onIceChatSend}
+                className="w-full lg:w-auto px-5 py-2.5 rounded-lg bg-gradient-to-br from-cyan-600 to-blue-600 border-2 border-cyan-400 text-white text-sm font-bold transition-all duration-200 card-shadow disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 hover:scale-[1.02] active:scale-[0.99]"
               >
-                Send
+                {isIceChatSending ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Sending…
+                  </span>
+                ) : 'Send'}
               </button>
             </div>
           </div>
+        </div>
+        </div>
         </div>
       )}
     </div>

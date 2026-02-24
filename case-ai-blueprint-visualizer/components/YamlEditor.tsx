@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface YamlLine {
@@ -11,54 +11,56 @@ interface YamlLine {
   isComment?: boolean;
 }
 
-const yamlLines: YamlLine[] = [
-  { text: '# meta_orchestrator.yml', indent: 0, isComment: true },
-  { text: '# NeMo Agent Toolkit — Meta-Orchestrator Config', indent: 0, isComment: true },
-  { text: '', indent: 0 },
-  { text: 'workflow_type: react_agent', indent: 0, nodeId: 'react-agent' },
-  { text: 'port: 8001', indent: 0, nodeId: 'nat-serve' },
-  { text: '', indent: 0 },
-  { text: 'llms:', indent: 0, isSection: true },
-  { text: 'orchestration_llm:', indent: 1, nodeId: 'llm-orchestration' },
-  { text: '  model: llama3.2-70b', indent: 2 },
-  { text: '  provider: nim', indent: 2, nodeId: 'nim-services' },
-  { text: '  temperature: 0.1', indent: 2 },
-  { text: 'summarization_llm:', indent: 1, nodeId: 'llm-summarize' },
-  { text: '  model: llama3.1-8b', indent: 2 },
-  { text: '  provider: nim', indent: 2 },
-  { text: '  temperature: 0.3', indent: 2 },
-  { text: '', indent: 0 },
-  { text: 'embedders:', indent: 0, isSection: true },
-  { text: 'nim_embedder:', indent: 1, nodeId: 'embedder' },
-  { text: '  model: e5-large-v2', indent: 2 },
-  { text: '  provider: nim', indent: 2 },
-  { text: '', indent: 0 },
-  { text: 'functions:', indent: 0, isSection: true },
-  { text: 'servicenow_rest_get_incidents:', indent: 1, nodeId: 'snow-rest' },
-  { text: '  method: GET', indent: 2 },
-  { text: '  endpoint: /api/now/table/incident', indent: 2 },
-  { text: '  description: "Fetch active incidents from ServiceNow"', indent: 2 },
-  { text: 'servicenow_now_assist:', indent: 1, nodeId: 'snow-nowassist' },
-  { text: '  method: POST', indent: 2 },
-  { text: '  endpoint: /virtual_agent/invoke', indent: 2 },
-  { text: '  delegate_agent: true', indent: 2 },
-  { text: 'jira_rest_search:', indent: 1, nodeId: 'atl-rest' },
-  { text: '  method: GET', indent: 2 },
-  { text: '  endpoint: /rest/api/3/search', indent: 2 },
-  { text: '  description: "Search Jira issues by JQL"', indent: 2 },
-  { text: 'processunity_get_vendor_risk:', indent: 1, nodeId: 'pu-rest' },
-  { text: '  method: GET', indent: 2 },
-  { text: '  endpoint: /api/v2/vendors/risk-summary', indent: 2 },
-  { text: '  description: "Fetch vendor risk summary"', indent: 2 },
-  { text: 'sailpoint_provision_access:', indent: 1, nodeId: 'sailpoint-rest' },
-  { text: '  method: POST', indent: 2 },
-  { text: '  endpoint: /v3/access-requests', indent: 2 },
-  { text: '  description: "Provision identity access"', indent: 2 },
-  { text: 'rag_search:', indent: 1, nodeId: 'rag-tool' },
-  { text: '  method: vector_search', indent: 2 },
-  { text: '  index: enterprise_kb', indent: 2, nodeId: 'vectordb' },
-  { text: '  description: "RAG retrieval from vector store"', indent: 2 },
-];
+function buildYamlLines(llmModel: string, embeddingModel: string): YamlLine[] {
+  return [
+    { text: '# meta_orchestrator.yml', indent: 0, isComment: true },
+    { text: '# NeMo Agent Toolkit — Meta-Orchestrator Config', indent: 0, isComment: true },
+    { text: '', indent: 0 },
+    { text: 'workflow_type: react_agent', indent: 0, nodeId: 'react-agent' },
+    { text: 'port: 8001', indent: 0, nodeId: 'nat-serve' },
+    { text: '', indent: 0 },
+    { text: 'llms:', indent: 0, isSection: true },
+    { text: 'orchestration_llm:', indent: 1, nodeId: 'llm-orchestration' },
+    { text: `  model: ${llmModel}`, indent: 2 },
+    { text: '  provider: nim', indent: 2, nodeId: 'nim-services' },
+    { text: '  temperature: 0.1', indent: 2 },
+    { text: 'summarization_llm:', indent: 1, nodeId: 'llm-summarize' },
+    { text: `  model: ${llmModel}`, indent: 2 },
+    { text: '  provider: nim', indent: 2 },
+    { text: '  temperature: 0.3', indent: 2 },
+    { text: '', indent: 0 },
+    { text: 'embedders:', indent: 0, isSection: true },
+    { text: 'nim_embedder:', indent: 1, nodeId: 'embedder' },
+    { text: `  model: ${embeddingModel}`, indent: 2 },
+    { text: '  provider: nim', indent: 2 },
+    { text: '', indent: 0 },
+    { text: 'functions:', indent: 0, isSection: true },
+    { text: 'servicenow_rest_get_incidents:', indent: 1, nodeId: 'snow-rest' },
+    { text: '  method: GET', indent: 2 },
+    { text: '  endpoint: /api/now/table/incident', indent: 2 },
+    { text: '  description: "Fetch active incidents from ServiceNow"', indent: 2 },
+    { text: 'servicenow_now_assist:', indent: 1, nodeId: 'snow-nowassist' },
+    { text: '  method: POST', indent: 2 },
+    { text: '  endpoint: /virtual_agent/invoke', indent: 2 },
+    { text: '  delegate_agent: true', indent: 2 },
+    { text: 'jira_rest_search:', indent: 1, nodeId: 'atl-rest' },
+    { text: '  method: GET', indent: 2 },
+    { text: '  endpoint: /rest/api/3/search', indent: 2 },
+    { text: '  description: "Search Jira issues by JQL"', indent: 2 },
+    { text: 'processunity_get_vendor_risk:', indent: 1, nodeId: 'pu-rest' },
+    { text: '  method: GET', indent: 2 },
+    { text: '  endpoint: /api/v2/vendors/risk-summary', indent: 2 },
+    { text: '  description: "Fetch vendor risk summary"', indent: 2 },
+    { text: 'sailpoint_provision_access:', indent: 1, nodeId: 'sailpoint-rest' },
+    { text: '  method: POST', indent: 2 },
+    { text: '  endpoint: /v3/access-requests', indent: 2 },
+    { text: '  description: "Provision identity access"', indent: 2 },
+    { text: 'rag_search:', indent: 1, nodeId: 'rag-tool' },
+    { text: '  method: vector_search', indent: 2 },
+    { text: '  index: enterprise_kb', indent: 2, nodeId: 'vectordb' },
+    { text: '  description: "RAG retrieval from vector store"', indent: 2 },
+  ];
+}
 
 function colorize(line: YamlLine, isHovered: boolean) {
   const text = line.text;
@@ -117,6 +119,22 @@ interface YamlEditorProps {
 
 export default function YamlEditor({ onHighlightNode, onClose }: YamlEditorProps) {
   const [hoveredLine, setHoveredLine] = useState<number | null>(null);
+  const [yamlLines, setYamlLines] = useState<YamlLine[]>(() =>
+    buildYamlLines('llama3.3:70b', 'all-MiniLM-L6-v2')
+  );
+
+  useEffect(() => {
+    fetch('/api/ice-chat/config')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) return;
+        setYamlLines(buildYamlLines(
+          data.llm_model ?? 'llama3.3:70b',
+          data.embedding_model?.split('/').pop() ?? 'all-MiniLM-L6-v2',
+        ));
+      })
+      .catch(() => { /* keep defaults */ });
+  }, []);
 
   const handleLineEnter = (index: number) => {
     setHoveredLine(index);

@@ -1,4 +1,4 @@
-import type { Blueprint, Scenario, EventStep, NodeStatus } from './types';
+import type { Blueprint, Scenario, EventStep, NodeStatus, PayloadInspection } from './types';
 import type { AnimationState } from './animationEngine';
 import type { IceChatTraceService } from './iceChatTraceService';
 import type { IceChatTraceSnapshot } from './iceChatTraceTypes';
@@ -15,6 +15,14 @@ export class IceChatAnimationEngine {
   private onStateChange: (state: AnimationState) => void;
   private traceService: IceChatTraceService;
   private lastRunId: string | null = null;
+  /**
+   * Set by reset() — while true any snapshot whose run_id matches lastRunId
+   * (the previous run) is silently dropped. Cleared on the first snapshot with
+   * a different run_id so the new query can animate from scratch.
+   */
+  private _waitingForNewRun: boolean = false;
+  /** Live payload data keyed by blueprint node ID, populated from real tool call args/results */
+  public livePayloads: Record<string, PayloadInspection> = {};
 
   constructor(
     blueprint: Blueprint,
@@ -52,6 +60,12 @@ export class IceChatAnimationEngine {
   }
 
   private onNewSnapshot(snapshot: IceChatTraceSnapshot, isNew: boolean): void {
+    // After reset(), skip any snapshot that still belongs to the previous run.
+    if (this._waitingForNewRun) {
+      if (snapshot.run_id === this.lastRunId) return; // still the old run — ignore
+      this._waitingForNewRun = false; // new run_id arrived — let it through
+    }
+
     const isActuallyNew = isNew || (this.lastRunId !== null && snapshot.run_id !== this.lastRunId);
 
     if (isActuallyNew) {
@@ -129,6 +143,31 @@ export class IceChatAnimationEngine {
     }
     this.scenario.activeNodes = Array.from(allNodeIds);
     this.scenario.chosenPath = ['domain-it'];
+
+    // Build live payload map from tool-call steps that carry real args/result
+    this.livePayloads = {};
+    for (const step of snapshot.steps) {
+      if (!step.args && !step.result) continue;
+      for (const nodeId of step.node_ids) {
+        const rawResult = step.result;
+        const outputJson: Record<string, unknown> =
+          rawResult === null || rawResult === undefined
+            ? {}
+            : Array.isArray(rawResult)
+              ? { items: rawResult }
+              : typeof rawResult === 'object'
+                ? (rawResult as Record<string, unknown>)
+                : { value: rawResult };
+
+        this.livePayloads[nodeId] = {
+          nodeId,
+          toolName: step.tool ?? step.label,
+          inputJson: (step.args ?? {}) as Record<string, unknown>,
+          outputJson,
+          schema: (step.schema ?? {}) as Record<string, unknown>,
+        };
+      }
+    }
   }
 
   private updateStateFromSnapshot(snapshot: IceChatTraceSnapshot): void {
@@ -178,8 +217,14 @@ export class IceChatAnimationEngine {
   }
 
   public reset(): void {
-    this.lastRunId = null;
+    // Keep lastRunId so the "waitingForNewRun" guard can still compare against the stale id.
+    this._waitingForNewRun = true;
+    this.livePayloads = {};
     this.state = this.getInitialState();
+    // Clear conversation/events immediately so the UI shows a blank slate right away
+    // instead of the previous query's data until the new snapshot arrives (~1 s).
+    this.scenario.chatMessages = [];
+    this.scenario.events = [];
     this.notifyStateChange();
   }
 

@@ -34,6 +34,8 @@ export default function Home() {
   const [rightPanel, setRightPanel] = useState<'events' | 'payload'>('events');
   const [yamlEditorOpen, setYamlEditorOpen] = useState(false);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+  const [isIceChatSending, setIsIceChatSending] = useState(false);
+  const iceChatAbortRef = useRef<AbortController | null>(null);
   const animationEngineRef = useRef<
     AnimationEngine | HealthChatAnimationEngine | LlmRouterAnimationEngine | RAGAnimationEngine | IceChatAnimationEngine | null
   >(null);
@@ -173,9 +175,16 @@ export default function Home() {
   };
 
   const handleReset = () => {
+    // Abort any in-flight ICE-chat request
+    if (iceChatAbortRef.current) {
+      iceChatAbortRef.current.abort();
+      iceChatAbortRef.current = null;
+      setIsIceChatSending(false);
+    }
     if (!animationEngineRef.current) return;
     animationEngineRef.current.reset();
     setActivePayload(null);
+    setRightPanel('events');
   };
 
   const handleSpeedChange = (speed: number) => {
@@ -220,14 +229,30 @@ export default function Home() {
   };
 
   const handleIceChatSend = async () => {
+    if (isIceChatSending) return;
+    // Abort any previous in-flight request
+    iceChatAbortRef.current?.abort();
+    const controller = new AbortController();
+    iceChatAbortRef.current = controller;
+
+    setIsIceChatSending(true);
+    setActivePayload(null);
+    setRightPanel('events');
+    if (animationEngineRef.current instanceof IceChatAnimationEngine) {
+      animationEngineRef.current.reset();
+    }
     try {
       await fetch('/api/ice-chat/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: iceChatPrompt }),
+        signal: controller.signal,
       });
     } catch {
-      // swallow; trace endpoint will surface errors via polling
+      // AbortError or network error — swallow; trace endpoint surfaces errors via polling
+    } finally {
+      setIsIceChatSending(false);
+      iceChatAbortRef.current = null;
     }
   };
 
@@ -246,17 +271,26 @@ export default function Home() {
   const isRealTime = isHealthChat || isLlmRouter || isNvidiaRag || isIceChatLive;
   const isMetaOrchestrator = blueprintId === 'meta-orchestrator';
 
+  // For ICE-chat live: pull real payload data from the engine's livePayloads map
+  const iceChatLivePayloads: Record<string, PayloadInspection> =
+    isIceChatLive && animationEngineRef.current instanceof IceChatAnimationEngine
+      ? animationEngineRef.current.livePayloads
+      : {};
+
   // Payload Inspector: detect active (or completed for real-time) api_call/native_agent nodes.
-  // In the ICE-chat live scenario the server finalises steps as 'completed' before the
-  // poller sees them, so we also accept 'completed' to ensure the panel populates.
+  // In the ICE-chat live scenario steps finish as 'completed' before the poller sees them as
+  // 'active', so we accept 'completed' too and use live payload data from the engine.
   const activeApiNode = isMetaOrchestrator && activeView === 'map'
     ? animationState.nodes.find(n => {
         if (n.type !== 'api_call' && n.type !== 'native_agent') return false;
-        if (!payloadSamples[n.id]) return false;
+        const hasPayload = isIceChatLive ? !!iceChatLivePayloads[n.id] : !!payloadSamples[n.id];
+        if (!hasPayload) return false;
         return n.status === 'active' || (isIceChatLive && n.status === 'completed');
       })
     : null;
-  const currentPayload = activeApiNode ? payloadSamples[activeApiNode.id] : null;
+  const currentPayload = activeApiNode
+    ? (isIceChatLive ? iceChatLivePayloads[activeApiNode.id] : payloadSamples[activeApiNode.id])
+    : null;
 
   // Update payload data when a new api/agent node activates (don't force-switch panel)
   if (currentPayload && (!activePayload || activePayload.nodeId !== currentPayload.nodeId)) {
@@ -298,9 +332,11 @@ export default function Home() {
           ragQuery={isNvidiaRag ? ragQuery : undefined}
           onRagQueryChange={isNvidiaRag ? setRagQuery : undefined}
           onRagSend={isNvidiaRag ? handleRagSend : undefined}
-          iceChatPrompt={isIceChatLive ? iceChatPrompt : undefined}
-          onIceChatPromptChange={isIceChatLive ? setIceChatPrompt : undefined}
+          iceChatPrompt={isMetaOrchestrator ? iceChatPrompt : undefined}
+          onIceChatPromptChange={isMetaOrchestrator ? setIceChatPrompt : undefined}
           onIceChatSend={isIceChatLive ? handleIceChatSend : undefined}
+          isIceChatSending={isIceChatLive ? isIceChatSending : undefined}
+          isIceChatLive={isIceChatLive}
         />
       )}
 
